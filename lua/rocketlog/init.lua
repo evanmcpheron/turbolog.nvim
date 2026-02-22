@@ -2,8 +2,8 @@ local M = {}
 
 local defaults = {
 	keymaps = {
-		operator = "<leadercl",
-		word = "<leader>cL",
+		operator = "<leaderll",
+		word = "<leader>lL",
 	},
 	enabled = true,
 	allowed_filetypes = {
