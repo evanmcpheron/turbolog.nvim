@@ -2,7 +2,7 @@ local M = {}
 
 local defaults = {
 	keymaps = {
-		operator = "<leaderll",
+		operator = "<leader>ll",
 		word = "<leader>lL",
 	},
 	enabled = true,
