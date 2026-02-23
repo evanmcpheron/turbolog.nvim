@@ -68,18 +68,14 @@ function M.log_word_under_cursor(log_type)
 	local filename = vim.fn.expand("%:t")
 	local log_line_number = insert.find_log_line_number(current_line_number)
 
-	local log_statement =
-		string.format("console.log(`🚀 ~ %s:%d ~ %s:`, %s);", filename, log_line_number, current_word, current_word)
-
-	if log_type == "error" then
-		log_statement = string.format(
-			"console.error(`🚀 ~ %s:%d ~ %s:`, %s);",
-			filename,
-			log_line_number,
-			current_word,
-			current_word
-		)
-	end
+	local log_statement = string.format(
+		"console.%s(`🚀 ~ %s:%d ~ %s:`, %s);",
+		log_type,
+		filename,
+		log_line_number,
+		current_word,
+		current_word
+	)
 
 	insert.insert_after_statement(log_statement, current_line_number)
 
