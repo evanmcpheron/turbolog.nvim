@@ -7,6 +7,8 @@ M.defaults = {
 		word = "<leader>cL",
 	},
 	enabled = true,
+	refresh_on_save = true,
+	refresh_on_insert = true,
 	allowed_filetypes = {
 		javascript = true,
 		javascriptreact = true,

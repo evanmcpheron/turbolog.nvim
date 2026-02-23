@@ -5,11 +5,30 @@ local guards = require("rocketlog.guards")
 local insert = require("rocketlog.insert")
 local selection = require("rocketlog.selection")
 
--- Stores the cursor line where the operator mapping started (before g@ runs).
--- This is used later to decide where to insert the generated log statement.
 _G.__rocket_log_anchor_line = _G.__rocket_log_anchor_line
 
----Operator entrypoint (used by g@ via operatorfunc).
+local function refresh_after_insert_if_enabled()
+	local ok_rocketlog, rocketlog = pcall(require, "rocketlog")
+	if not ok_rocketlog or not rocketlog or not rocketlog.config then
+		return
+	end
+
+	if rocketlog.config.enabled == false then
+		return
+	end
+
+	if rocketlog.config.refresh_on_insert == false then
+		return
+	end
+
+	local ok_refresh, refresh = pcall(require, "rocketlog.refresh")
+	if not ok_refresh then
+		return
+	end
+
+	refresh.refresh_buffer()
+end
+
 ---@param optype string
 function M.operator(optype)
 	if not guards.is_supported_filetype() then
@@ -25,14 +44,17 @@ function M.operator(optype)
 	end
 
 	local filename = vim.fn.expand("%:t")
-	local generated_log_lines = build.build_rocket_log_lines(filename, selection_start_line, selected_expression)
 	local normalized_anchor_line = insert.normalize_anchor_line(_G.__rocket_log_anchor_line, selection_start_line)
+	local log_line_number = insert.find_log_line_number(normalized_anchor_line)
 
+	local generated_log_lines = build.build_rocket_log_lines(filename, log_line_number, selected_expression)
 	insert.insert_after_statement(generated_log_lines, normalized_anchor_line)
+
+	refresh_after_insert_if_enabled()
+
 	_G.__rocket_log_anchor_line = nil
 end
 
----Insert a rocket log for the word currently under the cursor.
 function M.log_word_under_cursor()
 	if not guards.is_supported_filetype() then
 		vim.notify("RocketLog: unsupported filetype '" .. vim.bo.filetype .. "'", vim.log.levels.WARN)
@@ -42,16 +64,14 @@ function M.log_word_under_cursor()
 	local current_word = vim.fn.expand("<cword>")
 	local current_line_number = vim.fn.line(".")
 	local filename = vim.fn.expand("%:t")
+	local log_line_number = insert.find_log_line_number(current_line_number)
 
-	local log_statement = string.format(
-		"console.log(`🚀 ~ %s:%d ~ %s:`, %s);",
-		filename,
-		current_line_number,
-		current_word,
-		current_word
-	)
+	local log_statement =
+		string.format("console.log(`🚀 ~ %s:%d ~ %s:`, %s);", filename, log_line_number, current_word, current_word)
 
 	insert.insert_after_statement(log_statement, current_line_number)
+
+	refresh_after_insert_if_enabled()
 end
 
 return M

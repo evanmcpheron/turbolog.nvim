@@ -1,5 +1,6 @@
 local config = require("rocketlog.config")
 local actions = require("rocketlog.actions")
+local refresh = require("rocketlog.refresh")
 
 -- A stable global you can hang helpers off of.
 -- (Lua global table is `_G`, not `__G`.)
@@ -28,7 +29,6 @@ end
 ---Setup plugin configuration, keymaps, and commands.
 ---@param opts table|nil
 function M.setup(opts)
-	print("HELLO FROM ROCKETLOG SETUP")
 	config.apply(opts)
 	M.config = config.config
 
@@ -60,5 +60,31 @@ function M.setup(opts)
 		require("rocketlog").log_word_under_cursor()
 	end, { desc = "Insert rocket log for word under cursor" })
 end
+
+vim.api.nvim_create_autocmd("BufWritePre", {
+	group = vim.api.nvim_create_augroup("RocketLogRefreshOnSave", { clear = true }),
+	pattern = { "*.js", "*.jsx", "*.ts", "*.tsx" },
+	callback = function()
+		local rocketlog = require("rocketlog")
+
+		-- Respect plugin enabled flag if you already use one
+		if rocketlog.config and rocketlog.config.enabled == false then
+			return
+		end
+
+		-- Configurable, default true
+		if rocketlog.config and rocketlog.config.refresh_on_save == false then
+			return
+		end
+
+		-- Optional guard check
+		local ok, guards = pcall(require, "rocketlog.guards")
+		if ok and not guards.is_supported_filetype() then
+			return
+		end
+
+		refresh.refresh_buffer()
+	end,
+})
 
 return M
