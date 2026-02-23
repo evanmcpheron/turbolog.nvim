@@ -30,7 +30,8 @@ local function refresh_after_insert_if_enabled()
 end
 
 ---@param optype string
-function M.operator(optype)
+---@param log_type string|nil
+function M.operator(optype, log_type)
 	if not guards.is_supported_filetype() then
 		vim.notify("RocketLog: unsupported filetype '" .. vim.bo.filetype .. "'", vim.log.levels.WARN)
 		_G.__rocket_log_anchor_line = nil
@@ -47,7 +48,7 @@ function M.operator(optype)
 	local normalized_anchor_line = insert.normalize_anchor_line(_G.__rocket_log_anchor_line, selection_start_line)
 	local log_line_number = insert.find_log_line_number(normalized_anchor_line)
 
-	local generated_log_lines = build.build_rocket_log_lines(filename, log_line_number, selected_expression)
+	local generated_log_lines = build.build_rocket_log_lines(filename, log_line_number, selected_expression, log_type)
 	insert.insert_after_statement(generated_log_lines, normalized_anchor_line)
 
 	refresh_after_insert_if_enabled()
@@ -55,7 +56,8 @@ function M.operator(optype)
 	_G.__rocket_log_anchor_line = nil
 end
 
-function M.log_word_under_cursor()
+--- @param log_type string|nil
+function M.log_word_under_cursor(log_type)
 	if not guards.is_supported_filetype() then
 		vim.notify("RocketLog: unsupported filetype '" .. vim.bo.filetype .. "'", vim.log.levels.WARN)
 		return
@@ -68,6 +70,16 @@ function M.log_word_under_cursor()
 
 	local log_statement =
 		string.format("console.log(`🚀 ~ %s:%d ~ %s:`, %s);", filename, log_line_number, current_word, current_word)
+
+	if log_type == "error" then
+		log_statement = string.format(
+			"console.error(`🚀 ~ %s:%d ~ %s:`, %s);",
+			filename,
+			log_line_number,
+			current_word,
+			current_word
+		)
+	end
 
 	insert.insert_after_statement(log_statement, current_line_number)
 

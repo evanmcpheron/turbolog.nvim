@@ -12,18 +12,23 @@ M.config = config.config
 
 -- Must be global because Neovim's operatorfunc requires a global function reference.
 _G.__rocket_log_operator = function(optype)
-	require("rocketlog").operator(optype)
+	local log_type = _G.__rocket_log_type or "log"
+	require("rocketlog").operator(optype, log_type)
+
+	_G.__rocket_log_type = nil
 end
 
 ---Operator entrypoint (used by g@ via operatorfunc).
 ---@param optype string
-function M.operator(optype)
-	actions.operator(optype)
+---@param log_type string|nil Optional log type (e.g., "error") to determine console method
+function M.operator(optype, log_type)
+	actions.operator(optype, log_type)
 end
 
 ---Insert a rocket log for the word currently under the cursor.
-function M.log_word_under_cursor()
-	actions.log_word_under_cursor()
+---@param log_type string|nil Optional log type (e.g., "error") to determine console method
+function M.log_word_under_cursor(log_type)
+	actions.log_word_under_cursor(log_type)
 end
 
 ---Setup plugin configuration, keymaps, and commands.
@@ -38,11 +43,13 @@ function M.setup(opts)
 
 	local keymap_config = config.config.keymaps
 
-	-- Operator-pending mapping (motion/textobject based)
+	-- Operator-pending mapping for error logging (motion/textobject based)
 	if keymap_config.operator and keymap_config.operator ~= false then
 		vim.keymap.set("n", keymap_config.operator, function()
 			-- Save cursor line before g@ motion executes so we can anchor insertion.
 			_G.__rocket_log_anchor_line = vim.fn.line(".")
+			-- Tell the operator which console method to use
+			_G.__rocket_log_type = "log"
 			vim.o.operatorfunc = "v:lua.__rocket_log_operator"
 			return "g@"
 		end, { expr = true, desc = "Rocket log operator (motion/textobject)" })
@@ -51,14 +58,28 @@ function M.setup(opts)
 	-- Word-under-cursor mapping
 	if keymap_config.word and keymap_config.word ~= false then
 		vim.keymap.set("n", keymap_config.word, function()
-			require("rocketlog").log_word_under_cursor()
+			require("rocketlog").log_word_under_cursor("log")
 		end, { desc = "Rocket log word under cursor" })
 	end
 
-	-- User command for logging word under cursor
-	vim.api.nvim_create_user_command("RocketLogWord", function()
-		require("rocketlog").log_word_under_cursor()
-	end, { desc = "Insert rocket log for word under cursor" })
+	-- Word-under-cursor mapping for error logs
+	if keymap_config.error_word and keymap_config.error_word ~= false then
+		vim.keymap.set("n", keymap_config.error_word, function()
+			require("rocketlog").log_word_under_cursor("error")
+		end, { desc = "Rocket error log word under cursor" })
+	end
+
+	-- Operator-pending mapping for error logging (motion/textobject based)
+	if keymap_config.error_operator and keymap_config.error_operator ~= false then
+		vim.keymap.set("n", keymap_config.error_operator, function()
+			-- Save cursor line before g@ motion executes so we can anchor insertion.
+			_G.__rocket_log_anchor_line = vim.fn.line(".")
+			-- Tell the operator which console method to use
+			_G.__rocket_log_type = "error"
+			vim.o.operatorfunc = "v:lua.__rocket_log_operator"
+			return "g@"
+		end, { expr = true, desc = "Rocket error log operator (motion/textobject)" })
+	end
 end
 
 vim.api.nvim_create_autocmd("BufWritePre", {

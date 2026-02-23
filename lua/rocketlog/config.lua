@@ -5,6 +5,8 @@ M.defaults = {
 	keymaps = {
 		operator = "<leader>cl",
 		word = "<leader>cL",
+		error_operator = "<leader>ce",
+		error_word = "<leader>cE",
 	},
 	enabled = true,
 	refresh_on_save = true,
