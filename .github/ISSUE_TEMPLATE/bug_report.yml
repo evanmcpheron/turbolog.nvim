@@ -1,0 +1,76 @@
+name: "🐛 Bug report"
+description: "Something isn't working as expected"
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please fill this out so we can reproduce and fix it quickly.
+
+  - type: input
+    id: nvim_version
+    attributes:
+      label: Neovim version
+      description: "Run: nvim --version"
+      placeholder: "NVIM v0.10.3"
+    validations:
+      required: true
+
+  - type: input
+    id: plugin_version
+    attributes:
+      label: rocketlog.nvim version / commit
+      description: "Tag, release, or commit SHA (best). If using lazy.nvim, paste the commit from :Lazy."
+      placeholder: "v1.2.0 or 3f2a1c4"
+    validations:
+      required: true
+
+  - type: input
+    id: filetype
+    attributes:
+      label: Filetype
+      description: "In the buffer: :set filetype?"
+      placeholder: "typescriptreact"
+    validations:
+      required: true
+
+  - type: textarea
+    id: minimal_code
+    attributes:
+      label: Minimal code sample
+      description: "Smallest snippet that reproduces the issue."
+      render: typescript
+      placeholder: |
+        // paste minimal JS/TS snippet here
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: "What you expected to happen."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      placeholder: "What actually happened (include errors/messages)."
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro_steps
+    attributes:
+      label: Steps to reproduce
+      description: "Be specific — key presses, commands, etc."
+      placeholder: |
+        1. Open file ...
+        2. Put cursor on ...
+        3. Press <leader>...
+        4. Observe ...
+    validations:
+      required: true
