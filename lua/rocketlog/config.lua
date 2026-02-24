@@ -16,6 +16,7 @@ M.defaults = {
 		delete_all_buffer = "<leader>ra",
 		find = "<leader>rf",
 	},
+	label = "ROCKETLOG",
 	enabled = true,
 	refresh_on_save = true,
 	refresh_on_insert = true,

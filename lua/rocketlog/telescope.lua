@@ -8,6 +8,7 @@ local build = require("rocketlog.build")
 ---@param opts table|nil Optional Telescope picker options (theme, cwd, layout, etc.)
 ---@return nil
 function M.find_logs(opts)
+	local rocketlog_label = RocketLogs.config.label or "ROCKETLOG"
 	local ok, Snacks = pcall(require, "snacks")
 	if not ok or not Snacks.picker then
 		vim.notify("snacks.nvim picker is not available", vim.log.levels.WARN)
@@ -17,8 +18,9 @@ function M.find_logs(opts)
 	Snacks.picker.pick({
 		source = "grep",
 		title = "RocketLog",
-		search = "ROCKETLOG",
+		search = "[" .. rocketlog_label .. "]",
 		live = false,
+		regex = false,
 	})
 end
 

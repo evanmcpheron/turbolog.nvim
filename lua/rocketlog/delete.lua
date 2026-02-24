@@ -13,11 +13,13 @@ local DELETABLE_STATEMENTS = {
 ---@param line_text string|nil
 ---@return boolean
 local function is_rocketlog_line(line_text)
+	local rocketlog_label = RocketLogs.config.label or "ROCKETLOG"
+
 	if not line_text or line_text == "" then
 		return false
 	end
 
-	if line_text:find("ROCKETLOG", 1, true) then
+	if line_text:find(rocketlog_label, 1, true) then
 		return true
 	end
 
@@ -29,7 +31,9 @@ end
 ---@param line_text string
 ---@return integer
 local function marker_col0(line_text)
-	local marker_col = line_text:find("ROCKETLOG", 1, true)
+	local rocketlog_label = RocketLogs.config.label or "ROCKETLOG"
+
+	local marker_col = line_text:find(rocketlog_label, 1, true)
 	if marker_col then
 		return marker_col - 1
 	end
