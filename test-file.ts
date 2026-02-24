@@ -156,6 +156,19 @@ const users: User[] = [
     profile: null,
   },
 ];
+console.error(`🚀[ROCKETLOG] ~ test-file.ts:159 ~ users:`, users);
+console.warn(`🚀[ROCKETLOG] ~ test-file.ts:160 ~
+{
+      displayName: "Evan",
+      preferences: { theme: "dark", compactMode: true },
+    }
+`,
+  {
+    displayName: "Evan",
+    preferences: { theme: "dark", compactMode: true },
+  }
+);
+console.log(`🚀[ROCKETLOG] ~ test-file.ts:171 ~ users:`, users);
 
 const propertyData: PropertyData = {
   displayName: "Cabin in the Woods",

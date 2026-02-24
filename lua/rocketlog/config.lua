@@ -14,6 +14,7 @@ M.defaults = {
 		delete_below = "<leader>rd",
 		delete_above = "<leader>rD",
 		delete_all_buffer = "<leader>ra",
+		find = "<leader>rf",
 	},
 	enabled = true,
 	refresh_on_save = true,

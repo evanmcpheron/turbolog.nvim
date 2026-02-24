@@ -32,6 +32,13 @@ function M.log_word_under_cursor(log_type)
 	actions.log_word_under_cursor(log_type)
 end
 
+---Open Telescope and list only RocketLog entries.
+---@param opts table|nil Optional Telescope picker options
+---@return nil
+function M.find_logs(opts)
+	require("rocketlog.telescope").find_logs(opts)
+end
+
 ---Delete the nearest RocketLog below the cursor.
 ---@return boolean
 function M.delete_next_log()
@@ -61,6 +68,13 @@ function M.setup(opts)
 	end
 
 	local keymap_config = config.config.keymaps
+	-- Expose a command for project-wide RocketLog discovery.
+	pcall(vim.api.nvim_del_user_command, "RocketLogFind")
+	vim.api.nvim_create_user_command("RocketLogFind", function()
+		require("rocketlog").find_logs()
+	end, { desc = "Open Telescope with RocketLog entries" })
+
+	-- Operator-pending mapping for the configured default console method.
 
 	-- Operator-pending mapping for error logging (motion/textobject based)
 	if keymap_config.operator and keymap_config.operator ~= false then
@@ -136,6 +150,13 @@ function M.setup(opts)
 			vim.o.operatorfunc = "v:lua.__rocket_log_operator"
 			return "g@"
 		end, { expr = true, desc = "Rocket info log operator (motion/textobject)" })
+	end
+
+	-- Open Telescope scoped to RocketLog entries only.
+	if keymap_config.find and keymap_config.find ~= false then
+		vim.keymap.set("n", keymap_config.find, function()
+			require("rocketlog").find_logs()
+		end, { desc = "Find RocketLog entries" })
 	end
 
 	-- Delete all RocketLogs in the current buffer
