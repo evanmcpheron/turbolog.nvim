@@ -15,12 +15,12 @@ function M.get_text_from_marks(optype)
 		return nil, nil, nil, nil, nil, nil, nil
 	end
 
-	local selected_lines = vim.api.nvim_buf_get_lines(0, start_row - 1, end_row, false)
-	if #selected_lines == 0 then
-		return nil, nil, nil, nil, nil, nil, nil
-	end
-
 	if optype == "line" then
+		local selected_lines = vim.api.nvim_buf_get_lines(0, start_row - 1, end_row, false)
+		if #selected_lines == 0 then
+			return nil, nil, nil, nil, nil, nil, nil
+		end
+
 		return table.concat(selected_lines, "\n"),
 			start_row,
 			end_row,
@@ -30,12 +30,13 @@ function M.get_text_from_marks(optype)
 			end_row - 1
 	end
 
-	if #selected_lines == 1 then
-		selected_lines[1] = string.sub(selected_lines[1], start_col + 1, end_col + 1)
-	else
-		selected_lines[1] = string.sub(selected_lines[1], start_col + 1)
-		selected_lines[#selected_lines] =
-			string.sub(selected_lines[#selected_lines], 1, end_col + 1)
+	-- nvim_buf_get_text preserves indentation for middle lines in multiline selections.
+	-- end_col is exclusive for this API, while marks are inclusive, so add 1.
+	local selected_lines =
+		vim.api.nvim_buf_get_text(0, start_row - 1, start_col, end_row - 1, end_col + 1, {})
+
+	if #selected_lines == 0 then
+		return nil, nil, nil, nil, nil, nil, nil
 	end
 
 	return table.concat(selected_lines, "\n"),
