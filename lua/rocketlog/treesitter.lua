@@ -1,6 +1,5 @@
 local M = {}
 
--- Statements where insertion is safe after the statement terminates.
 local SAFE_AFTER_STATEMENTS = {
   expression_statement = true,
   lexical_declaration = true,
@@ -27,12 +26,10 @@ local SAFE_AFTER_STATEMENTS = {
   labeled_statement = true,
 }
 
--- Statements that should be logged before the statement to preserve behavior.
 local ALWAYS_BEFORE_STATEMENTS = {
   return_statement = true,
 }
 
--- Function-like nodes used to enforce local-scope insertion rules.
 local FUNCTION_LIKE = {
   arrow_function = true,
   function_declaration = true,
@@ -42,13 +39,11 @@ local FUNCTION_LIKE = {
   method_definition = true,
 }
 
--- Stop walking upward once we hit a scope boundary with no safe statement found.
 local SCOPE_BREAK = {
   program = true,
   statement_block = true,
 }
 
--- If the user selects a control-flow header/condition, inserting before is safer.
 local CONTROL_FLOW_HEADERS_PREFER_BEFORE = {
   if_statement = true,
   for_statement = true,
@@ -61,9 +56,6 @@ local CONTROL_FLOW_HEADERS_PREFER_BEFORE = {
   do_statement = true,
 }
 
----Parse the current buffer and return the Tree-sitter root node.
----@param bufnr integer
----@return TSNode|nil, string|nil
 local function get_parser_root(bufnr)
   local ok_parser, parser = pcall(vim.treesitter.get_parser, bufnr)
   if not ok_parser or not parser then
@@ -83,9 +75,6 @@ local function get_parser_root(bufnr)
   return root, nil
 end
 
----Convert a node range to 1-based rows while preserving 0-based columns.
----@param node TSNode
----@return table
 local function node_range_1_based(node)
   local sr, sc, er, ec = node:range()
   return {
@@ -96,10 +85,6 @@ local function node_range_1_based(node)
   }
 end
 
----Check whether `node` is within `possible_ancestor`.
----@param node TSNode
----@param possible_ancestor TSNode
----@return boolean
 local function is_descendant(node, possible_ancestor)
   local current = node
   while current do
@@ -111,10 +96,6 @@ local function is_descendant(node, possible_ancestor)
   return false
 end
 
----Find the first named child of a specific type.
----@param node TSNode|nil
----@param wanted_type string
----@return TSNode|nil
 local function first_child_of_type(node, wanted_type)
   if not node then
     return nil
@@ -129,9 +110,6 @@ local function first_child_of_type(node, wanted_type)
   return nil
 end
 
----Walk upward to the nearest function-like ancestor.
----@param node TSNode
----@return TSNode|nil
 local function nearest_function_ancestor(node)
   local current = node
   while current do
@@ -143,13 +121,6 @@ local function nearest_function_ancestor(node)
   return nil
 end
 
----Find the smallest named node covering the selected range.
----@param root TSNode
----@param start_row0 integer
----@param start_col0 integer
----@param end_row0 integer
----@param end_col0 integer
----@return TSNode|nil
 local function nearest_named_node_for_range(root, start_row0, start_col0, end_row0, end_col0)
   if end_row0 < start_row0 or (end_row0 == start_row0 and end_col0 < start_col0) then
     end_row0, start_row0 = start_row0, end_row0
@@ -163,17 +134,13 @@ local function nearest_named_node_for_range(root, start_row0, start_col0, end_ro
   return node
 end
 
----Decide whether a control-flow header selection should insert before the statement.
----@param selected_node TSNode
----@param statement_node TSNode
----@return boolean
 local function prefer_before_for_header_context(selected_node, statement_node)
   local statement_type = statement_node:type()
   if not CONTROL_FLOW_HEADERS_PREFER_BEFORE[statement_type] then
     return false
   end
 
-  -- If the selection is inside the statement body block, do not move it before.
+  -- If the selection is inside the statement body block, don't move it before.
   local body_block = first_child_of_type(statement_node, "statement_block")
   if body_block and is_descendant(selected_node, body_block) then
     return false
@@ -183,9 +150,6 @@ local function prefer_before_for_header_context(selected_node, statement_node)
   return true
 end
 
----Validate that the selection is in a function body when a local body exists.
----@param selected_node TSNode
----@return boolean, TSNode|string|nil
 local function resolve_function_scope_restriction(selected_node)
   local fn = nearest_function_ancestor(selected_node)
   if not fn then
@@ -209,9 +173,6 @@ local function resolve_function_scope_restriction(selected_node)
   return false, "unsupported_function_scope"
 end
 
----Walk upward until a safe statement node is found.
----@param selected_node TSNode
----@return TSNode|nil
 local function ascend_to_statement(selected_node)
   local current = selected_node
   while current do

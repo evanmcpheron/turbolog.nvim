@@ -1,6 +1,6 @@
 # rocketlog.nvim
 
-A Neovim plugin for inserting `console.log` / `console.error` statements with a rocket label, file name, and line number.
+A Neovim plugin for inserting `console.log` / `console.error` statements with a RocketLog marker, file name, and line number.
 
 This MVP uses **Tree-sitter first** for syntax-aware placement and falls back to line-based heuristics when Tree-sitter is unavailable.
 
@@ -12,6 +12,7 @@ This MVP uses **Tree-sitter first** for syntax-aware placement and falls back to
 - Tree-sitter insertion (JS/TS/React) with heuristic fallback
 - Refreshes RocketLog labels on save and optionally after insert
 - Guards against unsafe insertion in implicit arrow returns
+- Delete one RocketLog above/below the cursor (`<leader>rD` / `<leader>rd`)
 
 ## Default Keymaps
 
@@ -44,6 +45,8 @@ require("rocketlog").setup({
     word = "<leader>rL",
     error_operator = "<leader>re",
     error_word = "<leader>rE",
+    delete_below = "<leader>rd",
+    delete_above = "<leader>rD",
   },
   enabled = true,
   refresh_on_save = true,

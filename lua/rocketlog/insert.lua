@@ -1,15 +1,9 @@
 local M = {}
 
----Trim trailing whitespace from a string.
----@param text string
----@return string
 local function trim_right(text)
   return (text:gsub("%s+$", ""))
 end
 
----Return the leading indentation for a 1-based buffer line.
----@param line_number integer|nil
----@return string
 local function get_line_indent(line_number)
   if not line_number or line_number < 1 then
     return ""
@@ -19,10 +13,6 @@ local function get_line_indent(line_number)
   return line_text:match("^%s*") or ""
 end
 
----Apply indentation to each output line while preserving empty lines.
----@param lines string[]
----@param indent string
----@return string[]
 local function apply_indent(lines, indent)
   local out = {}
   for _, line in ipairs(lines) do
@@ -35,10 +25,6 @@ local function apply_indent(lines, indent)
   return out
 end
 
----Find the next non-empty line after `from_line`.
----@param from_line integer
----@param last_buffer_line integer
----@return integer|nil, string|nil
 local function next_nonblank_line(from_line, last_buffer_line)
   for line_number = from_line + 1, last_buffer_line do
     local line_text = vim.fn.getline(line_number)
@@ -49,18 +35,11 @@ local function next_nonblank_line(from_line, last_buffer_line)
   return nil, nil
 end
 
----Check whether a line ends with a trailing comma after trimming right whitespace.
----@param text string|nil
----@return boolean
 local function line_ends_with_comma(text)
   local trimmed_text = trim_right(text or "")
   return trimmed_text:match(",$") ~= nil
 end
 
----Detect whether a line looks like a continuation of the previous expression.
----Used by the heuristic fallback path only.
----@param text string|nil
----@return boolean
 local function is_continuation_line(text)
   if not text then
     return false
@@ -90,8 +69,6 @@ local function is_continuation_line(text)
   return false
 end
 
----Read the Tree-sitter preference flag from config.
----@return boolean
 local function treesitter_enabled()
   local ok, cfg = pcall(require, "rocketlog.config")
   if not ok or not cfg or not cfg.config then
@@ -100,8 +77,6 @@ local function treesitter_enabled()
   return cfg.config.prefer_treesitter ~= false
 end
 
----Read the heuristic fallback preference flag from config.
----@return boolean
 local function fallback_enabled()
   local ok, cfg = pcall(require, "rocketlog.config")
   if not ok or not cfg or not cfg.config then
@@ -110,9 +85,6 @@ local function fallback_enabled()
   return cfg.config.fallback_to_heuristics ~= false
 end
 
----Resolve a Tree-sitter insertion target from the provided selection context.
----@param context table|nil
----@return table|nil, string|nil
 local function try_treesitter_target(context)
   if not treesitter_enabled() then
     return nil, "treesitter_disabled"
@@ -150,8 +122,6 @@ function M.find_log_line_number(start_line)
   local paren_depth, brace_depth, bracket_depth = 0, 0, 0
   local has_started_multiline_expression = false
 
-  -- This fallback scanner is intentionally conservative. It waits for a likely
-  -- expression boundary before choosing an insertion line.
   for line_number = start_line, last_buffer_line do
     local line_text = vim.fn.getline(line_number)
 
@@ -216,21 +186,15 @@ function M.find_log_line_number(start_line)
   return insertion_line + 1
 end
 
----Insert one or more lines at a 1-based line index.
----@param lines_to_insert string[]
----@param insert_at_1_based integer
----@return integer
 local function insert_lines_at(lines_to_insert, insert_at_1_based)
   vim.api.nvim_buf_set_lines(0, insert_at_1_based - 1, insert_at_1_based - 1, false, lines_to_insert)
   return insert_at_1_based
 end
 
----Insert a log statement near the selected syntax unit.
----Uses Tree-sitter first and falls back to heuristics when allowed.
+---Insert a log statement near the selected syntax unit. Uses Tree-sitter first, falls back to heuristics.
 ---@param log_line string|string[]
 ---@param start_line integer
 ---@param context table|nil { start_row0, start_col0, end_row0, end_col0 }
----@return integer|nil, string|nil
 function M.insert_after_statement(log_line, start_line, context)
   local lines_to_insert = type(log_line) == "table" and log_line or { log_line }
 
@@ -261,9 +225,6 @@ function M.insert_after_statement(log_line, start_line, context)
   return insert_lines_at(indented_lines, fallback_insert_line), ts_error
 end
 
----Normalize the operator anchor line for multiline/object-start selections.
----This prevents some insertions from drifting one line too low when the motion starts
----immediately after an opening delimiter.
 ---@param anchor_line integer|nil
 ---@param selection_start_line integer
 ---@return integer

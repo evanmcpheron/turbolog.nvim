@@ -2,8 +2,7 @@ local M = {}
 
 local config = require("rocketlog.config")
 
----Check whether the current buffer filetype is allowed by plugin config.
----If `allowed_filetypes` is nil, all filetypes are accepted.
+---Checks whether the current buffer filetype is allowed.
 ---@return boolean
 function M.is_supported_filetype()
 	local current_filetype = vim.bo.filetype
