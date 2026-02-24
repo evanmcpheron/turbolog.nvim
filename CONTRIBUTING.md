@@ -6,7 +6,7 @@ Thanks for helping improve rocketlog.nvim. This doc is intentionally short: do t
 
 Point your Neovim config at your local clone:
 
-````lua
+```lua
 {
   dir = "~/path/to/rocketlog.nvim",
   name = "rocketlog.nvim",
@@ -117,4 +117,4 @@ Open an issue with:
 - Expanding scope beyond JS/TS console logging
 - Formatting-only PRs across the whole repo:> [!WARNING]
 
-````
+

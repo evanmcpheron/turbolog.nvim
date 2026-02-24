@@ -5,33 +5,46 @@ local M = {}
 ---@return string|nil, integer|nil, integer|nil, integer|nil, integer|nil, integer|nil, integer|nil
 --- expr_text, start_line, end_line, start_col, end_col, start_row0, end_row0
 function M.get_text_from_marks(optype)
-  local start_mark = vim.api.nvim_buf_get_mark(0, "[")
-  local end_mark = vim.api.nvim_buf_get_mark(0, "]")
+	local start_mark = vim.api.nvim_buf_get_mark(0, "[")
+	local end_mark = vim.api.nvim_buf_get_mark(0, "]")
 
-  local start_row, start_col = start_mark[1], start_mark[2]
-  local end_row, end_col = end_mark[1], end_mark[2]
+	local start_row, start_col = start_mark[1], start_mark[2]
+	local end_row, end_col = end_mark[1], end_mark[2]
 
-  if start_row == 0 or end_row == 0 then
-    return nil, nil, nil, nil, nil, nil, nil
-  end
+	if start_row == 0 or end_row == 0 then
+		return nil, nil, nil, nil, nil, nil, nil
+	end
 
-  local selected_lines = vim.api.nvim_buf_get_lines(0, start_row - 1, end_row, false)
-  if #selected_lines == 0 then
-    return nil, nil, nil, nil, nil, nil, nil
-  end
+	local selected_lines = vim.api.nvim_buf_get_lines(0, start_row - 1, end_row, false)
+	if #selected_lines == 0 then
+		return nil, nil, nil, nil, nil, nil, nil
+	end
 
-  if optype == "line" then
-    return table.concat(selected_lines, "\n"), start_row, end_row, 0, math.max(0, #selected_lines[#selected_lines] - 1), start_row - 1, end_row - 1
-  end
+	if optype == "line" then
+		return table.concat(selected_lines, "\n"),
+			start_row,
+			end_row,
+			0,
+			math.max(0, #selected_lines[#selected_lines] - 1),
+			start_row - 1,
+			end_row - 1
+	end
 
-  if #selected_lines == 1 then
-    selected_lines[1] = string.sub(selected_lines[1], start_col + 1, end_col + 1)
-  else
-    selected_lines[1] = string.sub(selected_lines[1], start_col + 1)
-    selected_lines[#selected_lines] = string.sub(selected_lines[#selected_lines], 1, end_col + 1)
-  end
+	if #selected_lines == 1 then
+		selected_lines[1] = string.sub(selected_lines[1], start_col + 1, end_col + 1)
+	else
+		selected_lines[1] = string.sub(selected_lines[1], start_col + 1)
+		selected_lines[#selected_lines] =
+			string.sub(selected_lines[#selected_lines], 1, end_col + 1)
+	end
 
-  return table.concat(selected_lines, "\n"), start_row, end_row, start_col, end_col, start_row - 1, end_row - 1
+	return table.concat(selected_lines, "\n"),
+		start_row,
+		end_row,
+		start_col,
+		end_col,
+		start_row - 1,
+		end_row - 1
 end
 
 return M

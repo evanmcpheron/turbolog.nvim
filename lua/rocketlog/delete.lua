@@ -230,7 +230,10 @@ local function delete_nearest(direction)
 	local target_line = find_marker_line(direction)
 	if not target_line then
 		local location = direction > 0 and "below" or "above"
-		vim.notify("RocketLog: no RocketLog found " .. location .. " the cursor", vim.log.levels.INFO)
+		vim.notify(
+			"RocketLog: no RocketLog found " .. location .. " the cursor",
+			vim.log.levels.INFO
+		)
 		return false
 	end
 
@@ -304,7 +307,10 @@ function M.clear_buffer_logs()
 	if deleted_count == 0 then
 		vim.notify("RocketLog: no RocketLogs found in current buffer", vim.log.levels.INFO)
 	else
-		vim.notify("RocketLog: deleted " .. deleted_count .. " RocketLog(s) in current buffer", vim.log.levels.INFO)
+		vim.notify(
+			"RocketLog: deleted " .. deleted_count .. " RocketLog(s) in current buffer",
+			vim.log.levels.INFO
+		)
 	end
 
 	return deleted_count

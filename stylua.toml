@@ -1,0 +1,9 @@
+# Run: stylua .
+
+column_width = 100
+line_endings = "Unix"
+indent_type = "Tabs"
+quote_style = "AutoPreferDouble"
+
+# Keep function call parens for clarity
+call_parentheses = "Always"

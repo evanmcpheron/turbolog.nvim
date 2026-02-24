@@ -13,17 +13,20 @@ function M.refresh_buffer()
 	local filename = vim.fn.expand("%:t")
 	local changed = 0
 
-	local rocketlog_label = (_G.RocketLogs and _G.RocketLogs.config and _G.RocketLogs.config.label) or "ROCKETLOG"
+	local rocketlog_label = (_G.RocketLogs and _G.RocketLogs.config and _G.RocketLogs.config.label)
+		or "ROCKETLOG"
 	local escaped_label = escape_lua_pattern(rocketlog_label)
 
 	local pattern_with_label = "(`🚀%[" .. escaped_label .. "%]%s*~%s*)[^:]+:%d+(%s*~%s*)"
 	local fallback_pattern = "(`🚀%s*~%s*)[^:]+:%d+(%s*~%s*)"
 
 	for i, line in ipairs(lines) do
-		local updated_line, replacements = line:gsub(pattern_with_label, "%1" .. filename .. ":" .. i .. "%2", 1)
+		local updated_line, replacements =
+			line:gsub(pattern_with_label, "%1" .. filename .. ":" .. i .. "%2", 1)
 
 		if replacements == 0 then
-			updated_line, replacements = line:gsub(fallback_pattern, "%1" .. filename .. ":" .. i .. "%2", 1)
+			updated_line, replacements =
+				line:gsub(fallback_pattern, "%1" .. filename .. ":" .. i .. "%2", 1)
 		end
 
 		if replacements > 0 and updated_line ~= line then
