@@ -1,33 +1,64 @@
 # rocketlog.nvim
 
-A Neovim plugin for inserting `console.log` / `console.error` statements with a RocketLog marker, file name, and line number.
+A lightweight Neovim plugin for inserting structured `console.*` statements in JavaScript and TypeScript files.
 
-This MVP uses **Tree-sitter first** for syntax-aware placement and falls back to line-based heuristics when Tree-sitter is unavailable.
+`rocketlog.nvim` adds labeled logs with a consistent format that includes the file name and line number, and it can keep those labels updated as your code moves.
 
 ## Features
 
-- Operator-pending logging via `<leader>rl` + motion/textobject
-- Word-under-cursor logging via `<leader>rL`
-- Error logging variants via `<leader>re` and `<leader>rE`
-- Tree-sitter insertion (JS/TS/React) with heuristic fallback
-- Refreshes RocketLog labels on save and optionally after insert
-- Guards against unsafe insertion in implicit arrow returns
-- Delete one RocketLog above/below the cursor (`<leader>rD` / `<leader>rd`)
+- **Operator-pending logging** (works with motions/text objects)
+- **Word-under-cursor logging**
+- Supports:
+  - `console.log`
+  - `console.error`
+  - `console.warn`
+  - `console.info`
+- **Tree-sitter-first insertion** for safer placement in real code structures
+- **Heuristic fallback** when Tree-sitter is unavailable
+- **Automatic label refresh**
+  - On save (configurable)
+  - Immediately after insertion (configurable)
+- **Guardrails** to prevent invalid insertion in unsafe contexts (such as implicit arrow returns)
+- Log cleanup helpers:
+  - Delete next RocketLog
+  - Delete previous RocketLog
+  - Clear all RocketLogs in the current buffer
+
+---
 
 ## Default Keymaps
 
-- `<leader>rliw` → log inner word (operator + textobject)
-- `<leader>rL` → log word under cursor
-- `<leader>reiw` → error-log inner word (operator + textobject)
-- `<leader>rE` → error-log word under cursor
+### Insert logs (VIM-motions-pending)
+
+Use the operator mapping followed by a motion or text object.
+
+- `<leader>rl` → `console.log`
+- `<leader>re` → `console.error`
+- `<leader>rw` → `console.warn`
+- `<leader>ri` → `console.info`
+
+### Insert logs (word under cursor)
+
+- `<leader>rL` → `console.log`
+- `<leader>rE` → `console.error`
+- `<leader>rW` → `console.warn`
+- `<leader>rI` → `console.info`
+
+### Delete logs
+
+- `<leader>rd` → delete next RocketLog below the cursor
+- `<leader>rD` → delete nearest RocketLog above the cursor
+- `<leader>ra` → delete **ALL** RocketLogs in the current buffer
+
+---
 
 ## Installation (lazy.nvim)
 
 ```lua
 {
-  "yourname/rocketlog.nvim",
+  "evanmcpheron/rocketlog.nvim",
   dependencies = {
-    -- Recommended for syntax-aware insertion:
+    -- Recommended for syntax-aware insertion
     "nvim-treesitter/nvim-treesitter",
   },
   config = function()
@@ -36,6 +67,8 @@ This MVP uses **Tree-sitter first** for syntax-aware placement and falls back to
 }
 ```
 
+---
+
 ## Configuration
 
 ```lua
@@ -43,16 +76,32 @@ require("rocketlog").setup({
   keymaps = {
     operator = "<leader>rl",
     word = "<leader>rL",
+
     error_operator = "<leader>re",
     error_word = "<leader>rE",
+
+    warn_operator = "<leader>rw",
+    warn_word = "<leader>rW",
+
+    info_operator = "<leader>ri",
+    info_word = "<leader>rI",
+
     delete_below = "<leader>rd",
     delete_above = "<leader>rD",
+    delete_all_buffer = "<leader>ra",
   },
+
   enabled = true,
-  refresh_on_save = true,
-  refresh_on_insert = true,
-  prefer_treesitter = true,
-  fallback_to_heuristics = true,
+
+  -- Refresh RocketLog file:line labels automatically
+  refresh_on_save = true, -- updates line numbers on file save when true
+  refresh_on_insert = true, -- updates line numbers for entire file when adding a new log
+
+  -- Insertion strategy
+  prefer_treesitter = true, -- Highly recommended to keep true... It may not work if it's false.
+  fallback_to_heuristics = true, -- this is a "fail-safe" (recommended to keep true)
+
+  -- Filetypes allowed for insertion
   allowed_filetypes = {
     javascript = true,
     javascriptreact = true,
@@ -62,16 +111,80 @@ require("rocketlog").setup({
 })
 ```
 
+---
+
+## Usage Examples
+
+### Log a text object
+
+Press the operator mapping, then a motion/text object:
+
+- `<leader>rliw` → log inner word
+- `<leader>rla"` → log around quotes
+- `<leader>rli(` → log inside parentheses
+
+### Log the word under the cursor
+
+- `<leader>rL`
+
+### Insert an error log instead
+
+- `<leader>rE` (word under cursor)
+- `<leader>reiw` (operator + text object)
+
+---
+
+## How It Works
+
+RocketLog inserts logs in a consistent format that includes:
+
+- A RocketLog marker
+- The current file name
+- The line number where the log lives
+- The selected expression label
+
+When code shifts and line numbers change, RocketLog can refresh the labels automatically so they stay accurate.
+
+---
+
 ## Notes
 
-- Tree-sitter placement is much safer than line heuristics, especially for multiline chains and object literals.
-- If you try to log inside an **implicit arrow return** (e.g. `x => x.id`), the plugin warns instead of inserting invalid or misleading code.
-- If Tree-sitter cannot parse the buffer, the plugin falls back to the older line-based insertion logic (unless disabled).
+- **Tree-sitter is strongly recommended** for safer insertion, especially around multiline chains, object literals, and nested expressions.
+- If Tree-sitter is unavailable or cannot parse the current buffer, RocketLog can fall back to line-based insertion (if enabled).
+- RocketLog will warn and skip insertion in contexts where adding a statement would break syntax (for example, inside an implicit arrow function return).
 
-## Disable auto-setup
+---
 
-If you prefer explicit setup only, set this before the plugin loads:
+## Disable Auto Setup
+
+By default, the plugin can auto-initialize with default settings.
+
+To disable that and call `setup()` manually, set this before the plugin loads:
 
 ```lua
 vim.g.rocketlog_disable_auto_setup = true
 ```
+
+---
+
+## License
+
+MIT License
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
