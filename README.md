@@ -34,6 +34,8 @@ console.info(`🚀[ROCKETLOG] ~ file.ts:123 ~ variableName:`, variableName);
   - Delete previous RocketLog
   - Clear all RocketLogs in the current buffer
 
+
+https://github.com/user-attachments/assets/a1a394a5-c5d0-4cc1-99cc-45410cea57bb
 <img width="2904" height="1640" alt="image" src="https://github.com/user-attachments/assets/eaedcc6b-ccdd-4e72-b035-2618678aafed" />
 
 ---
