@@ -4,6 +4,9 @@ A lightweight Neovim plugin for inserting structured `console.*` statements in J
 
 `rocketlog.nvim` adds labeled logs with a consistent format that includes the file name and line number, and it can keep those labels updated as your code moves.
 
+For details on how to help improve this tool, see [CONTRIBUTING.md](./CONTRIBUTING.md).
+For submitting an issue or feature request, see [issues](https://github.com/evanmcpheron/rocketlog.nvim/issues).
+
 ```typescript
 console.log(`🚀[ROCKETLOG] ~ file.ts:123 ~ variableName:`, variableName);
 console.warn(`🚀[ROCKETLOG] ~ file.ts:123 ~ variableName:`, variableName);
@@ -30,7 +33,7 @@ console.info(`🚀[ROCKETLOG] ~ file.ts:123 ~ variableName:`, variableName);
   - Delete next RocketLog
   - Delete previous RocketLog
   - Clear all RocketLogs in the current buffer
- 
+
 <img width="2904" height="1640" alt="image" src="https://github.com/user-attachments/assets/eaedcc6b-ccdd-4e72-b035-2618678aafed" />
 
 ---
@@ -101,6 +104,8 @@ require("rocketlog").setup({
   },
 
   enabled = true,
+
+  label = "ROCKETLOG", -- customize your label that goes in the []
 
   -- Refresh RocketLog file:line labels automatically
   refresh_on_save = true, -- updates line numbers on file save when true

@@ -94,6 +94,7 @@ Open an issue with:
 
 ### PR expectations
 
+- To create a PR visit [here](https://github.com/evanmcpheron/rocketlog.nvim/compare).
 - No breaking changes without discussion in an issue first.
 - No stylistic refactors mixed with logic changes.
 - If you touch insertion logic:
@@ -115,4 +116,5 @@ Open an issue with:
 - Adding new required dependencies
 - Expanding scope beyond JS/TS console logging
 - Formatting-only PRs across the whole repo:> [!WARNING]
+
 ````
