@@ -4,6 +4,13 @@ A lightweight Neovim plugin for inserting structured `console.*` statements in J
 
 `rocketlog.nvim` adds labeled logs with a consistent format that includes the file name and line number, and it can keep those labels updated as your code moves.
 
+```typescript
+console.log(`🚀[ROCKETLOG] ~ file.ts:123 ~ variableName:`, variableName);
+console.warn(`🚀[ROCKETLOG] ~ file.ts:123 ~ variableName:`, variableName);
+console.error(`🚀[ROCKETLOG] ~ file.ts:123 ~ variableName:`, variableName);
+console.info(`🚀[ROCKETLOG] ~ file.ts:123 ~ variableName:`, variableName);
+```
+
 ## Features
 
 - **Operator-pending logging** (works with motions/text objects)
