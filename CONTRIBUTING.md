@@ -14,7 +14,8 @@ Point your Neovim config at your local clone:
   config = function()
     require("rocketlog").setup()
   end,
-}```
+}
+```
 
 Restart neovim and run `:Lazy sync` if needed.
 
