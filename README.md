@@ -6,19 +6,19 @@ This MVP uses **Tree-sitter first** for syntax-aware placement and falls back to
 
 ## Features
 
-- Operator-pending logging via `<leader>cl` + motion/textobject
-- Word-under-cursor logging via `<leader>cL`
-- Error logging variants via `<leader>ce` and `<leader>cE`
+- Operator-pending logging via `<leader>rl` + motion/textobject
+- Word-under-cursor logging via `<leader>rL`
+- Error logging variants via `<leader>re` and `<leader>rE`
 - Tree-sitter insertion (JS/TS/React) with heuristic fallback
 - Refreshes RocketLog labels on save and optionally after insert
 - Guards against unsafe insertion in implicit arrow returns
 
 ## Default Keymaps
 
-- `<leader>cliw` → log inner word (operator + textobject)
-- `<leader>cL` → log word under cursor
-- `<leader>ceiw` → error-log inner word (operator + textobject)
-- `<leader>cE` → error-log word under cursor
+- `<leader>rliw` → log inner word (operator + textobject)
+- `<leader>rL` → log word under cursor
+- `<leader>reiw` → error-log inner word (operator + textobject)
+- `<leader>rE` → error-log word under cursor
 
 ## Installation (lazy.nvim)
 
@@ -40,10 +40,10 @@ This MVP uses **Tree-sitter first** for syntax-aware placement and falls back to
 ```lua
 require("rocketlog").setup({
   keymaps = {
-    operator = "<leader>cl",
-    word = "<leader>cL",
-    error_operator = "<leader>ce",
-    error_word = "<leader>cE",
+    operator = "<leader>rl",
+    word = "<leader>rL",
+    error_operator = "<leader>re",
+    error_word = "<leader>rE",
   },
   enabled = true,
   refresh_on_save = true,

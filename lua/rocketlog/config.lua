@@ -5,6 +5,7 @@ local M = {}
 ---@field word string|false
 ---@field error_operator string|false
 ---@field error_word string|false
+---@field find string|false
 
 ---@class RocketLogConfig
 ---@field keymaps RocketLogKeymapsConfig
@@ -13,22 +14,36 @@ local M = {}
 ---@field refresh_on_insert boolean
 ---@field prefer_treesitter boolean
 ---@field fallback_to_heuristics boolean
+---@field default_console_method string
+---@field show_file_line boolean
+---@field show_variable_name boolean
 ---@field allowed_filetypes table<string, boolean>|nil
 
 -- Default plugin configuration.
 ---@type RocketLogConfig
+
 M.defaults = {
 	keymaps = {
-		operator = "<leader>cl",
-		word = "<leader>cL",
-		error_operator = "<leader>ce",
-		error_word = "<leader>cE",
+		operator = "<leader>rl",
+		word = "<leader>rr",
+		error_operator = "<leader>re",
+		error_word = "<leader>rE",
+		warn_operator = "<leader>rw",
+		warn_word = "<leader>rW",
+		delete_below = "<leader>rdd",
+		delete_above = "<leader>rdD",
+		delete_all = "<leader>rda",
+		delete_all_in_file = "<leader>rdf",
+		find = "<leader>rf",
 	},
 	enabled = true,
-	refresh_on_save = true,
+	localfresh_on_save = true,
 	refresh_on_insert = true,
 	prefer_treesitter = true,
 	fallback_to_heuristics = true,
+	default_console_method = "log",
+	show_file_line = true,
+	show_variable_name = true,
 	allowed_filetypes = {
 		javascript = true,
 		javascriptreact = true,
