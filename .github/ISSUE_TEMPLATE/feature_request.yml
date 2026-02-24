@@ -1,0 +1,36 @@
+name: "✨ Feature request"
+description: "Request a new feature or improvement"
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea! The more concrete the better.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem it solves
+      description: "What pain are you experiencing? What's hard today?"
+      placeholder: "Right now I can't..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed behavior
+      description: "What should rocketlog.nvim do instead?"
+      placeholder: "It should..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: "Other approaches/workarounds you considered (or currently use)."
+      placeholder: "I tried..."
+    validations:
+      required: false
