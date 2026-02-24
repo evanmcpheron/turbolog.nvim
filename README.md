@@ -1,28 +1,34 @@
 # rocketlog.nvim
 
-A small Neovim plugin for inserting `console.log` statements with a rocket label, file name, and line number.
+A Neovim plugin for inserting `console.log` / `console.error` statements with a rocket label, file name, and line number.
+
+This MVP uses **Tree-sitter first** for syntax-aware placement and falls back to line-based heuristics when Tree-sitter is unavailable.
 
 ## Features
 
-- **Operator-pending logging** via `<leader>cl` + motion/textobject
-- **Word-under-cursor logging** via `<leader>cL`
-- Heuristic insertion **after the current statement** (helps with multiline calls/objects)
-- JS/TS filetype guard (JavaScript / TypeScript + React variants)
+- Operator-pending logging via `<leader>cl` + motion/textobject
+- Word-under-cursor logging via `<leader>cL`
+- Error logging variants via `<leader>ce` and `<leader>cE`
+- Tree-sitter insertion (JS/TS/React) with heuristic fallback
+- Refreshes RocketLog labels on save and optionally after insert
+- Guards against unsafe insertion in implicit arrow returns
 
 ## Default Keymaps
 
-- `<leader>cliw` → log inner word
-- `<leader>cli"` → log inside quotes
-- `<leader>cla"` → log around quotes
-- `<leader>cli(` → log inside parens
-- `<leader>cla{` → log around braces
+- `<leader>cliw` → log inner word (operator + textobject)
 - `<leader>cL` → log word under cursor
+- `<leader>ceiw` → error-log inner word (operator + textobject)
+- `<leader>cE` → error-log word under cursor
 
 ## Installation (lazy.nvim)
 
 ```lua
 {
-  "evanmcpheron/turbolog.nvim",
+  "yourname/rocketlog.nvim",
+  dependencies = {
+    -- Recommended for syntax-aware insertion:
+    "nvim-treesitter/nvim-treesitter",
+  },
   config = function()
     require("rocketlog").setup()
   end,
@@ -36,8 +42,14 @@ require("rocketlog").setup({
   keymaps = {
     operator = "<leader>cl",
     word = "<leader>cL",
+    error_operator = "<leader>ce",
+    error_word = "<leader>cE",
   },
   enabled = true,
+  refresh_on_save = true,
+  refresh_on_insert = true,
+  prefer_treesitter = true,
+  fallback_to_heuristics = true,
   allowed_filetypes = {
     javascript = true,
     javascriptreact = true,
@@ -47,20 +59,16 @@ require("rocketlog").setup({
 })
 ```
 
-### Disable auto-setup
+## Notes
+
+- Tree-sitter placement is much safer than line heuristics, especially for multiline chains and object literals.
+- If you try to log inside an **implicit arrow return** (e.g. `x => x.id`), the plugin warns instead of inserting invalid or misleading code.
+- If Tree-sitter cannot parse the buffer, the plugin falls back to the older line-based insertion logic (unless disabled).
+
+## Disable auto-setup
 
 If you prefer explicit setup only, set this before the plugin loads:
 
 ```lua
 vim.g.rocketlog_disable_auto_setup = true
 ```
-
-## Command
-
-- `:RocketLogWord` → Inserts a log for the word under the cursor
-
-## Inspiration
-
-- The inspiration for this plugin cam from [TurboLog](https://www.turboconsolelog.io/)
-
-# turbolog.nvim

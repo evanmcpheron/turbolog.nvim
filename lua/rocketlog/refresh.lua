@@ -3,6 +3,7 @@ local M = {}
 ---Update RocketLog labels (filename + line number) in the current buffer.
 ---This only updates logs that match the standard RocketLog format:
 ---console.log(`🚀 ~ file.ts:123 ~ label:`, ...)
+---@return integer changed_count
 function M.refresh_buffer()
 	local bufnr = vim.api.nvim_get_current_buf()
 	local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
@@ -10,14 +11,8 @@ function M.refresh_buffer()
 	local changed = 0
 
 	for i, line in ipairs(lines) do
-		-- Match the RocketLog prefix inside a template string:
-		-- `🚀 ~ something.ts:123 ~
-		--
-		-- Capture groups:
-		-- 1) everything before filename+line inside the template string
-		-- 2) the "label and rest" after " ~ "
-		--
-		-- We replace only the file:line part.
+		-- Match the RocketLog prefix inside a template string and only replace the
+		-- file:line portion so the original label text and expression stay intact.
 		local updated_line, replacements =
 			line:gsub("(`🚀%s*~%s*)[^:]+:%d+(%s*~%s*)", "%1" .. filename .. ":" .. i .. "%2", 1)
 
