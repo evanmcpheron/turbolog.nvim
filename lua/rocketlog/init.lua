@@ -100,6 +100,44 @@ function M.setup(opts)
 		end, { expr = true, desc = "Rocket error log operator (motion/textobject)" })
 	end
 
+	-- Word-under-cursor mapping for warn logs
+	if keymap_config.warn_word and keymap_config.warn_word ~= false then
+		vim.keymap.set("n", keymap_config.warn_word, function()
+			require("rocketlog").log_word_under_cursor("warn")
+		end, { desc = "Rocket warn log word under cursor" })
+	end
+
+	-- Operator-pending mapping for warn logging (motion/textobject based)
+	if keymap_config.warn_operator and keymap_config.warn_operator ~= false then
+		vim.keymap.set("n", keymap_config.warn_operator, function()
+			-- Save cursor line before g@ motion executes so we can anchor insertion.
+			_G.__rocket_log_anchor_line = vim.fn.line(".")
+			-- Tell the operator which console method to use
+			_G.__rocket_log_type = "warn"
+			vim.o.operatorfunc = "v:lua.__rocket_log_operator"
+			return "g@"
+		end, { expr = true, desc = "Rocket warn log operator (motion/textobject)" })
+	end
+
+	-- Word-under-cursor mapping for info logs
+	if keymap_config.info_word and keymap_config.info_word ~= false then
+		vim.keymap.set("n", keymap_config.info_word, function()
+			require("rocketlog").log_word_under_cursor("info")
+		end, { desc = "Rocket info log word under cursor" })
+	end
+
+	-- Operator-pending mapping for info logging (motion/textobject based)
+	if keymap_config.info_operator and keymap_config.info_operator ~= false then
+		vim.keymap.set("n", keymap_config.info_operator, function()
+			-- Save cursor line before g@ motion executes so we can anchor insertion.
+			_G.__rocket_log_anchor_line = vim.fn.line(".")
+			-- Tell the operator which console method to use
+			_G.__rocket_log_type = "info"
+			vim.o.operatorfunc = "v:lua.__rocket_log_operator"
+			return "g@"
+		end, { expr = true, desc = "Rocket info log operator (motion/textobject)" })
+	end
+
 	-- Delete all RocketLogs in the current buffer
 	if keymap_config.delete_all_buffer and keymap_config.delete_all_buffer ~= false then
 		vim.keymap.set("n", keymap_config.delete_all_buffer, function()
