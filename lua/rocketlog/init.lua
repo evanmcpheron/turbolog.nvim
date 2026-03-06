@@ -11,7 +11,7 @@ local M = _G.RocketLogs
 -- Expose runtime config (kept in a separate module).
 M.config = config.config
 
--- Must be global because Neovim's motionsfunc requires a global function reference.
+-- Must be global because Neovim's operatorfunc requires a global function reference.
 _G.__rocket_log_motions = function(optype)
 	local log_type = _G.__rocket_log_type or "log"
 	require("rocketlog").motions(optype, log_type)
@@ -19,7 +19,7 @@ _G.__rocket_log_motions = function(optype)
 	_G.__rocket_log_type = nil
 end
 
----Motions entrypoint (used by g@ via motionsfunc).
+---Motions entrypoint (used by g@ via operatorfunc).
 ---@param optype string
 ---@param log_type string|nil Optional log type (e.g., "error") to determine console method
 function M.motions(optype, log_type)
@@ -83,7 +83,7 @@ function M.setup(opts)
 			_G.__rocket_log_anchor_line = vim.fn.line(".")
 			-- Tell the motions which console method to use
 			_G.__rocket_log_type = "log"
-			vim.o.motionsfunc = "v:lua.__rocket_log_motions"
+			vim.o.operatorfunc = "v:lua.__rocket_log_motions"
 			return "g@"
 		end, { expr = true, desc = "Rocket log motions (motion/textobject)" })
 	end
@@ -109,7 +109,7 @@ function M.setup(opts)
 			_G.__rocket_log_anchor_line = vim.fn.line(".")
 			-- Tell the motions which console method to use
 			_G.__rocket_log_type = "error"
-			vim.o.motionsfunc = "v:lua.__rocket_log_motions"
+			vim.o.operatorfunc = "v:lua.__rocket_log_motions"
 			return "g@"
 		end, { expr = true, desc = "Rocket error log motions (motion/textobject)" })
 	end
@@ -128,7 +128,7 @@ function M.setup(opts)
 			_G.__rocket_log_anchor_line = vim.fn.line(".")
 			-- Tell the motions which console method to use
 			_G.__rocket_log_type = "warn"
-			vim.o.motionsfunc = "v:lua.__rocket_log_motions"
+			vim.o.operatorfunc = "v:lua.__rocket_log_motions"
 			return "g@"
 		end, { expr = true, desc = "Rocket warn log motions (motion/textobject)" })
 	end
@@ -147,7 +147,7 @@ function M.setup(opts)
 			_G.__rocket_log_anchor_line = vim.fn.line(".")
 			-- Tell the motions which console method to use
 			_G.__rocket_log_type = "info"
-			vim.o.motionsfunc = "v:lua.__rocket_log_motions"
+			vim.o.operatorfunc = "v:lua.__rocket_log_motions"
 			return "g@"
 		end, { expr = true, desc = "Rocket info log motions (motion/textobject)" })
 	end
