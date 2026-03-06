@@ -3,13 +3,13 @@ local M = {}
 -- Default plugin configuration
 M.defaults = {
 	keymaps = {
-		operator = "<leader>rl",
+		motions = "<leader>rl",
 		word = "<leader>rL",
-		error_operator = "<leader>re",
+		error_motions = "<leader>re",
 		error_word = "<leader>rE",
-		warn_operator = "<leader>rw",
+		warn_motions = "<leader>rw",
 		warn_word = "<leader>rW",
-		info_operator = "<leader>ri",
+		info_motions = "<leader>ri",
 		info_word = "<leader>rI",
 		delete_below = "<leader>rd",
 		delete_above = "<leader>rD",

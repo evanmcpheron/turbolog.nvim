@@ -1,7 +1,7 @@
 local M = {}
 
----Read the text selected by operatorfunc using Neovim's '[' and ']' marks.
----@param optype string Operator type ("line", "char", "block" etc. from operatorfunc)
+---Read the text selected by motionsfunc using Neovim's '[' and ']' marks.
+---@param optype string Motions type ("line", "char", "block" etc. from motionsfunc)
 ---@return string|nil, integer|nil, integer|nil, integer|nil, integer|nil, integer|nil, integer|nil
 --- expr_text, start_line, end_line, start_col, end_col, start_row0, end_row0
 function M.get_text_from_marks(optype)

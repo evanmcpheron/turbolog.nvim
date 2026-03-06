@@ -118,7 +118,7 @@ end
 
 ---Find the line number where a log statement should be inserted.
 ---Returns the 1-based line number where the new console.log will be placed.
----@param start_line integer The line where the original selection/operator started
+---@param start_line integer The line where the original selection/motions started
 ---@return integer
 function M.find_log_line_number(start_line)
 	local last_buffer_line = vim.fn.line("$")

@@ -31,11 +31,11 @@ describe("rocketlog.config", function()
 	it("deep merges nested keymaps", function()
 		local applied = config.apply({
 			keymaps = {
-				operator = "gL",
+				motions = "gL",
 			},
 		})
 
-		assert.are.equal("gL", applied.keymaps.operator)
+		assert.are.equal("gL", applied.keymaps.motions)
 		-- Unspecified keymaps should remain at their defaults.
 		assert.are.equal(config.defaults.keymaps.word, applied.keymaps.word)
 		assert.are.equal(config.defaults.keymaps.delete_above, applied.keymaps.delete_above)
@@ -45,7 +45,7 @@ describe("rocketlog.config", function()
 		local original_defaults = vim.deepcopy(config.defaults)
 
 		config.apply({
-			keymaps = { operator = "ZZ" },
+			keymaps = { motions = "ZZ" },
 			allowed_filetypes = { typescript = false },
 		})
 
@@ -60,7 +60,7 @@ describe("rocketlog.config", function()
 		})
 
 		assert.are.equal("<leader>XX", applied.keymaps.delete_all_buffer)
-		assert.are.equal(config.defaults.keymaps.operator, applied.keymaps.operator)
+		assert.are.equal(config.defaults.keymaps.motions, applied.keymaps.motions)
 	end)
 
 	it("overrides boolean flags like refresh_on_save", function()

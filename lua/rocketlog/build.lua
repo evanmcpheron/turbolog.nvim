@@ -118,7 +118,7 @@ end
 ---If the expression spans multiple lines, emits a multiline console call that preserves expression formatting.
 ---@param file string Filename only (not full path)
 ---@param line_num integer Source line number used in the rocket label
----@param expr string Expression text captured from operator selection
+---@param expr string Expression text captured from motions selection
 ---@param log_type string|nil Optional console method (log, error, warn, info, etc.)
 ---@return string[]
 function M.build_rocket_log_lines(file, line_num, expr, log_type)

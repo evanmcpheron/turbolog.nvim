@@ -44,7 +44,7 @@ end
 
 ---@param optype string
 ---@param log_type string|nil
-function M.operator(optype, log_type)
+function M.motions(optype, log_type)
 	if not guards.is_supported_filetype() then
 		vim.notify(
 			"RocketLog: unsupported filetype '" .. vim.bo.filetype .. "'",

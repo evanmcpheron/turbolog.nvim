@@ -16,7 +16,7 @@ console.info(`🚀[ROCKETLOG] ~ file.ts:123 ~ variableName:`, variableName);
 
 ## Features
 
-- **Operator-pending logging** (works with motions/text objects)
+- **Motions-pending logging** (works with motions/text objects)
 - **Word-under-cursor logging**
 - Supports:
   - `console.log`
@@ -34,8 +34,6 @@ console.info(`🚀[ROCKETLOG] ~ file.ts:123 ~ variableName:`, variableName);
   - Delete previous RocketLog
   - Clear all RocketLogs in the current buffer
 
-
-
 ![202602240806-ezgif com-video-to-gif-converter (1)](https://github.com/user-attachments/assets/4e6cf464-e8c2-4b1f-bd52-105f84e0cbc5)
 ea57bb
 <img width="2904" height="1640" alt="image" src="https://github.com/user-attachments/assets/eaedcc6b-ccdd-4e72-b035-2618678aafed" />
@@ -46,7 +44,7 @@ ea57bb
 
 ### Insert logs (VIM-motions-pending)
 
-Use the operator mapping followed by a motion or text object.
+Use the motions mapping followed by a motion or text object.
 
 - `<leader>rl` → `console.log`
 - `<leader>re` → `console.error`
@@ -90,16 +88,16 @@ Use the operator mapping followed by a motion or text object.
 ```lua
 require("rocketlog").setup({
   keymaps = {
-    operator = "<leader>rl",
+    motions = "<leader>rl",
     word = "<leader>rL",
 
-    error_operator = "<leader>re",
+    error_motions = "<leader>re",
     error_word = "<leader>rE",
 
-    warn_operator = "<leader>rw",
+    warn_motions = "<leader>rw",
     warn_word = "<leader>rW",
 
-    info_operator = "<leader>ri",
+    info_motions = "<leader>ri",
     info_word = "<leader>rI",
 
     delete_below = "<leader>rd",
@@ -135,7 +133,7 @@ require("rocketlog").setup({
 
 ### Log a text object
 
-Press the operator mapping, then a motion/text object:
+Press the motions mapping, then a motion/text object:
 
 - `<leader>rliw` → log inner word
 - `<leader>rla"` → log around quotes
@@ -148,7 +146,7 @@ Press the operator mapping, then a motion/text object:
 ### Insert an error log instead
 
 - `<leader>rE` (word under cursor)
-- `<leader>reiw` (operator + text object)
+- `<leader>reiw` (motions + text object)
 
 ---
 

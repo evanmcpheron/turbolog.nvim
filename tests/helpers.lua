@@ -106,7 +106,7 @@ end
 ---@param start_col integer
 ---@param end_line integer
 ---@param end_col integer
-function M.set_operator_marks(start_line, start_col, end_line, end_col)
+function M.set_motions_marks(start_line, start_col, end_line, end_col)
 	-- `nvim_buf_set_mark` expects 1-based line, 0-based col.
 	vim.api.nvim_buf_set_mark(0, "[", start_line, start_col, {})
 	vim.api.nvim_buf_set_mark(0, "]", end_line, end_col, {})

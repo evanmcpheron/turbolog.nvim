@@ -9,7 +9,10 @@ describe("rocketlog.actions", function()
 		_G.RocketLogs = { config = { label = "ROCKETLOG" } }
 
 		-- Fresh buffer for each test.
-		h.set_buffer({ "const user = { name: 'Evan' };" }, { filetype = "typescript", name = "/tmp/test.ts" })
+		h.set_buffer(
+			{ "const user = { name: 'Evan' };" },
+			{ filetype = "typescript", name = "/tmp/test.ts" }
+		)
 		h.set_cursor(1, 6) -- on "user"
 
 		-- Reset config to defaults, then apply per-test overrides.
@@ -27,13 +30,13 @@ describe("rocketlog.actions", function()
 		require("rocketlog").setup({
 			-- Disable keymaps in tests to avoid polluting global state.
 			keymaps = {
-				operator = false,
+				motions = false,
 				word = false,
-				error_operator = false,
+				error_motions = false,
 				error_word = false,
-				warn_operator = false,
+				warn_motions = false,
 				warn_word = false,
-				info_operator = false,
+				info_motions = false,
 				info_word = false,
 				delete_below = false,
 				delete_above = false,
@@ -82,10 +85,17 @@ describe("rocketlog.actions", function()
 
 		local restore_build
 		local build_calls = {}
-		restore_build = h.stub(build, "build_rocket_log_lines", function(file, line_num, expr, log_type)
-			table.insert(build_calls, { file = file, line_num = line_num, expr = expr, log_type = log_type })
-			return { "console.log('stub');" }
-		end)
+		restore_build = h.stub(
+			build,
+			"build_rocket_log_lines",
+			function(file, line_num, expr, log_type)
+				table.insert(
+					build_calls,
+					{ file = file, line_num = line_num, expr = expr, log_type = log_type }
+				)
+				return { "console.log('stub');" }
+			end
+		)
 
 		local restore_insert
 		local insert_calls = {}
@@ -164,7 +174,10 @@ describe("rocketlog.actions", function()
 
 	it("runs refresh after insert when refresh_on_insert is true", function()
 		config.apply({ refresh_on_insert = true })
-		require("rocketlog").setup({ refresh_on_insert = true, keymaps = { operator = false, word = false } })
+		require("rocketlog").setup({
+			refresh_on_insert = true,
+			keymaps = { motions = false, word = false },
+		})
 
 		local refresh = require("rocketlog.refresh")
 		local insert = require("rocketlog.insert")
@@ -190,7 +203,10 @@ describe("rocketlog.actions", function()
 
 	it("does not run refresh after insert when refresh_on_insert is false", function()
 		config.apply({ refresh_on_insert = false })
-		require("rocketlog").setup({ refresh_on_insert = false, keymaps = { operator = false, word = false } })
+		require("rocketlog").setup({
+			refresh_on_insert = false,
+			keymaps = { motions = false, word = false },
+		})
 
 		local refresh = require("rocketlog.refresh")
 		local insert = require("rocketlog.insert")
@@ -268,32 +284,32 @@ describe("rocketlog.actions", function()
 		assert.is_true(messages[1].msg:find("function header", 1, true) ~= nil)
 	end)
 
-	it(
-		"falls back to heuristic insertion when treesitter is unavailable if supported",
-		function()
-			-- Force treesitter failure so insert module must use its heuristic path.
-			-- Prefer Tree-sitter first so we are actually testing the fallback behavior.
-			require("rocketlog.config").apply({ prefer_treesitter = true, fallback_to_heuristics = true })
-			local restore_ts = h.stub(vim.treesitter, "get_parser", function()
-				error("no parser")
-			end)
+	it("falls back to heuristic insertion when treesitter is unavailable if supported", function()
+		-- Force treesitter failure so insert module must use its heuristic path.
+		-- Prefer Tree-sitter first so we are actually testing the fallback behavior.
+		require("rocketlog.config").apply({
+			prefer_treesitter = true,
+			fallback_to_heuristics = true,
+		})
+		local restore_ts = h.stub(vim.treesitter, "get_parser", function()
+			error("no parser")
+		end)
 
-			-- Use real insert/build to validate insertion actually happens.
-			h.set_buffer({
-				"const a = 1;",
-				"const b = 2;",
-			}, { filetype = "typescript", name = "/tmp/test.ts" })
-			h.set_cursor(1, 6)
+		-- Use real insert/build to validate insertion actually happens.
+		h.set_buffer({
+			"const a = 1;",
+			"const b = 2;",
+		}, { filetype = "typescript", name = "/tmp/test.ts" })
+		h.set_cursor(1, 6)
 
-			actions.log_word_under_cursor("log")
+		actions.log_word_under_cursor("log")
 
-			restore_ts()
+		restore_ts()
 
-			local lines = h.get_lines()
-			assert.is_true(#lines == 3)
-			assert.is_true(lines[2]:find("console.log", 1, true) ~= nil)
-		end
-	)
+		local lines = h.get_lines()
+		assert.is_true(#lines == 3)
+		assert.is_true(lines[2]:find("console.log", 1, true) ~= nil)
+	end)
 
 	it("does not insert when selection extraction fails", function()
 		local insert = require("rocketlog.insert")
@@ -307,7 +323,7 @@ describe("rocketlog.actions", function()
 			error("should not insert")
 		end)
 
-		actions.operator("char", "log")
+		actions.motions("char", "log")
 
 		restore_sel()
 		restore_insert()

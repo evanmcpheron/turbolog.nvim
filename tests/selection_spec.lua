@@ -19,7 +19,7 @@ describe("rocketlog.selection", function()
 
 		-- Select "answer" from the line.
 		-- Columns are 0-based: "const " is 6 chars, so 'a' is col=6.
-		h.set_operator_marks(1, 6, 1, 11)
+		h.set_motions_marks(1, 6, 1, 11)
 
 		local text, start_line, end_line, start_col, end_col = selection.get_text_from_marks("char")
 		assert.are.equal("answer", text)
@@ -38,7 +38,7 @@ describe("rocketlog.selection", function()
 		}, { filetype = "typescript" })
 
 		-- Select from "[" to "]" including indentation.
-		h.set_operator_marks(1, 14, 4, 1)
+		h.set_motions_marks(1, 14, 4, 1)
 
 		local text, start_line, end_line = selection.get_text_from_marks("char")
 		assert.are.equal(1, start_line)
@@ -59,7 +59,7 @@ describe("rocketlog.selection", function()
 	it("trims selection text as intended", function()
 		-- This module intentionally does *not* trim; it returns the exact selected text.
 		h.set_buffer({ "  const   x   =   1; " }, { filetype = "typescript" })
-		h.set_operator_marks(1, 0, 1, 20)
+		h.set_motions_marks(1, 0, 1, 20)
 
 		local text = selection.get_text_from_marks("char")
 		assert.are.equal("  const   x   =   1; ", text)
@@ -72,7 +72,7 @@ describe("rocketlog.selection", function()
 		}, { filetype = "typescript" })
 
 		-- Select "a = 1;\nconst b" (cross-line selection).
-		h.set_operator_marks(1, 6, 2, 6)
+		h.set_motions_marks(1, 6, 2, 6)
 		local _, start_line, end_line, start_col, end_col, start_row0, end_row0 =
 			selection.get_text_from_marks("char")
 
@@ -91,7 +91,7 @@ describe("rocketlog.selection", function()
 			"const c = 3;",
 		}, { filetype = "typescript" })
 
-		h.set_operator_marks(1, 0, 2, 0)
+		h.set_motions_marks(1, 0, 2, 0)
 		local text, start_line, end_line, start_col, end_col = selection.get_text_from_marks("line")
 
 		assert.are.equal("const a = 1;\nconst b = 2;", text)
@@ -102,7 +102,7 @@ describe("rocketlog.selection", function()
 	end)
 
 	it("extracts word under cursor correctly if module supports it", function()
-		-- This module currently only reads marks (operatorfunc selections).
+		-- This module currently only reads marks (motionsfunc selections).
 		assert.is_nil(selection.get_word_under_cursor)
 	end)
 end)

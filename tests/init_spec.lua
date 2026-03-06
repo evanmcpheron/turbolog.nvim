@@ -14,7 +14,7 @@ describe("rocketlog.init", function()
 	end)
 
 	it("exports public logging actions", function()
-		assert.is_true(type(rocketlog.operator) == "function")
+		assert.is_true(type(rocketlog.motions) == "function")
 		assert.is_true(type(rocketlog.log_word_under_cursor) == "function")
 		assert.is_true(type(rocketlog.find_logs) == "function")
 	end)
@@ -26,7 +26,22 @@ describe("rocketlog.init", function()
 	end)
 
 	it("setup creates the RocketLogFind user command", function()
-		rocketlog.setup({ keymaps = { operator = false, word = false, error_operator = false, error_word = false, warn_operator = false, warn_word = false, info_operator = false, info_word = false, delete_below = false, delete_above = false, delete_all_buffer = false, find = false } })
+		rocketlog.setup({
+			keymaps = {
+				motions = false,
+				word = false,
+				error_motions = false,
+				error_word = false,
+				warn_motions = false,
+				warn_word = false,
+				info_motions = false,
+				info_word = false,
+				delete_below = false,
+				delete_above = false,
+				delete_all_buffer = false,
+				find = false,
+			},
+		})
 		-- Vim returns 2 for a user-defined Ex command.
 		assert.are.equal(2, vim.fn.exists(":RocketLogFind"))
 	end)
@@ -36,13 +51,13 @@ describe("rocketlog.init", function()
 			label = "MYLABEL",
 			refresh_on_insert = false,
 			keymaps = {
-				operator = false,
+				motions = false,
 				word = false,
-				error_operator = false,
+				error_motions = false,
 				error_word = false,
-				warn_operator = false,
+				warn_motions = false,
 				warn_word = false,
-				info_operator = false,
+				info_motions = false,
 				info_word = false,
 				delete_below = false,
 				delete_above = false,
@@ -59,13 +74,13 @@ describe("rocketlog.init", function()
 		rocketlog.setup({
 			label = "FIRST",
 			keymaps = {
-				operator = false,
+				motions = false,
 				word = false,
-				error_operator = false,
+				error_motions = false,
 				error_word = false,
-				warn_operator = false,
+				warn_motions = false,
 				warn_word = false,
-				info_operator = false,
+				info_motions = false,
 				info_word = false,
 				delete_below = false,
 				delete_above = false,
@@ -77,13 +92,13 @@ describe("rocketlog.init", function()
 		rocketlog.setup({
 			label = "SECOND",
 			keymaps = {
-				operator = false,
+				motions = false,
 				word = false,
-				error_operator = false,
+				error_motions = false,
 				error_word = false,
-				warn_operator = false,
+				warn_motions = false,
 				warn_word = false,
-				info_operator = false,
+				info_motions = false,
 				info_word = false,
 				delete_below = false,
 				delete_above = false,

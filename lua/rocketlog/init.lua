@@ -11,19 +11,19 @@ local M = _G.RocketLogs
 -- Expose runtime config (kept in a separate module).
 M.config = config.config
 
--- Must be global because Neovim's operatorfunc requires a global function reference.
-_G.__rocket_log_operator = function(optype)
+-- Must be global because Neovim's motionsfunc requires a global function reference.
+_G.__rocket_log_motions = function(optype)
 	local log_type = _G.__rocket_log_type or "log"
-	require("rocketlog").operator(optype, log_type)
+	require("rocketlog").motions(optype, log_type)
 
 	_G.__rocket_log_type = nil
 end
 
----Operator entrypoint (used by g@ via operatorfunc).
+---Motions entrypoint (used by g@ via motionsfunc).
 ---@param optype string
 ---@param log_type string|nil Optional log type (e.g., "error") to determine console method
-function M.operator(optype, log_type)
-	actions.operator(optype, log_type)
+function M.motions(optype, log_type)
+	actions.motions(optype, log_type)
 end
 
 ---Insert a rocket log for the word currently under the cursor.
@@ -74,18 +74,18 @@ function M.setup(opts)
 		require("rocketlog").find_logs()
 	end, { desc = "Open Telescope with RocketLog entries" })
 
-	-- Operator-pending mapping for the configured default console method.
+	-- Motions-pending mapping for the configured default console method.
 
-	-- Operator-pending mapping for error logging (motion/textobject based)
-	if keymap_config.operator and keymap_config.operator ~= false then
-		vim.keymap.set("n", keymap_config.operator, function()
+	-- Motions-pending mapping for error logging (motion/textobject based)
+	if keymap_config.motions and keymap_config.motions ~= false then
+		vim.keymap.set("n", keymap_config.motions, function()
 			-- Save cursor line before g@ motion executes so we can anchor insertion.
 			_G.__rocket_log_anchor_line = vim.fn.line(".")
-			-- Tell the operator which console method to use
+			-- Tell the motions which console method to use
 			_G.__rocket_log_type = "log"
-			vim.o.operatorfunc = "v:lua.__rocket_log_operator"
+			vim.o.motionsfunc = "v:lua.__rocket_log_motions"
 			return "g@"
-		end, { expr = true, desc = "Rocket log operator (motion/textobject)" })
+		end, { expr = true, desc = "Rocket log motions (motion/textobject)" })
 	end
 
 	-- Word-under-cursor mapping
@@ -102,16 +102,16 @@ function M.setup(opts)
 		end, { desc = "Rocket error log word under cursor" })
 	end
 
-	-- Operator-pending mapping for error logging (motion/textobject based)
-	if keymap_config.error_operator and keymap_config.error_operator ~= false then
-		vim.keymap.set("n", keymap_config.error_operator, function()
+	-- Motions-pending mapping for error logging (motion/textobject based)
+	if keymap_config.error_motions and keymap_config.error_motions ~= false then
+		vim.keymap.set("n", keymap_config.error_motions, function()
 			-- Save cursor line before g@ motion executes so we can anchor insertion.
 			_G.__rocket_log_anchor_line = vim.fn.line(".")
-			-- Tell the operator which console method to use
+			-- Tell the motions which console method to use
 			_G.__rocket_log_type = "error"
-			vim.o.operatorfunc = "v:lua.__rocket_log_operator"
+			vim.o.motionsfunc = "v:lua.__rocket_log_motions"
 			return "g@"
-		end, { expr = true, desc = "Rocket error log operator (motion/textobject)" })
+		end, { expr = true, desc = "Rocket error log motions (motion/textobject)" })
 	end
 
 	-- Word-under-cursor mapping for warn logs
@@ -121,16 +121,16 @@ function M.setup(opts)
 		end, { desc = "Rocket warn log word under cursor" })
 	end
 
-	-- Operator-pending mapping for warn logging (motion/textobject based)
-	if keymap_config.warn_operator and keymap_config.warn_operator ~= false then
-		vim.keymap.set("n", keymap_config.warn_operator, function()
+	-- Motions-pending mapping for warn logging (motion/textobject based)
+	if keymap_config.warn_motions and keymap_config.warn_motions ~= false then
+		vim.keymap.set("n", keymap_config.warn_motions, function()
 			-- Save cursor line before g@ motion executes so we can anchor insertion.
 			_G.__rocket_log_anchor_line = vim.fn.line(".")
-			-- Tell the operator which console method to use
+			-- Tell the motions which console method to use
 			_G.__rocket_log_type = "warn"
-			vim.o.operatorfunc = "v:lua.__rocket_log_operator"
+			vim.o.motionsfunc = "v:lua.__rocket_log_motions"
 			return "g@"
-		end, { expr = true, desc = "Rocket warn log operator (motion/textobject)" })
+		end, { expr = true, desc = "Rocket warn log motions (motion/textobject)" })
 	end
 
 	-- Word-under-cursor mapping for info logs
@@ -140,16 +140,16 @@ function M.setup(opts)
 		end, { desc = "Rocket info log word under cursor" })
 	end
 
-	-- Operator-pending mapping for info logging (motion/textobject based)
-	if keymap_config.info_operator and keymap_config.info_operator ~= false then
-		vim.keymap.set("n", keymap_config.info_operator, function()
+	-- Motions-pending mapping for info logging (motion/textobject based)
+	if keymap_config.info_motions and keymap_config.info_motions ~= false then
+		vim.keymap.set("n", keymap_config.info_motions, function()
 			-- Save cursor line before g@ motion executes so we can anchor insertion.
 			_G.__rocket_log_anchor_line = vim.fn.line(".")
-			-- Tell the operator which console method to use
+			-- Tell the motions which console method to use
 			_G.__rocket_log_type = "info"
-			vim.o.operatorfunc = "v:lua.__rocket_log_operator"
+			vim.o.motionsfunc = "v:lua.__rocket_log_motions"
 			return "g@"
-		end, { expr = true, desc = "Rocket info log operator (motion/textobject)" })
+		end, { expr = true, desc = "Rocket info log motions (motion/textobject)" })
 	end
 
 	-- Open Telescope scoped to RocketLog entries only.
