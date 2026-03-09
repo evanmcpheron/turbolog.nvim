@@ -18,6 +18,7 @@ console.info(`🚀[ROCKETLOG] ~ file.ts:123 ~ variableName:`, variableName);
 
 - **Operator-pending logging** (works with motions/text objects)
 - **Word-under-cursor logging**
+- **Visual-mode logging**
 - Supports:
   - `console.log`
   - `console.error`
@@ -44,6 +45,15 @@ console.info(`🚀[ROCKETLOG] ~ file.ts:123 ~ variableName:`, variableName);
 ### Insert logs (operator-pending)
 
 Use the motions mapping followed by a motion or text object.
+
+- `<leader>rl` → `console.log`
+- `<leader>re` → `console.error`
+- `<leader>rw` → `console.warn`
+- `<leader>ri` → `console.info`
+
+### Insert logs (visual mode)
+
+Use the same mappings while in visual mode to log the highlighted text.
 
 - `<leader>rl` → `console.log`
 - `<leader>re` → `console.error`
@@ -95,15 +105,19 @@ require("rocketlog").setup({
   keymaps = {
     motions = "<leader>rl",
     word = "<leader>rL",
+    visual = "<leader>rl",
 
     error_motions = "<leader>re",
     error_word = "<leader>rE",
+    error_visual = "<leader>re",
 
     warn_motions = "<leader>rw",
     warn_word = "<leader>rW",
+    warn_visual = "<leader>rw",
 
     info_motions = "<leader>ri",
     info_word = "<leader>rI",
+    info_visual = "<leader>ri",
 
     delete_below = "<leader>rd",
     delete_above = "<leader>rD",
@@ -144,6 +158,13 @@ Press the motions mapping, then a motion/text object:
 - `<leader>rliw` → log inner word
 - `<leader>rla"` → log around quotes
 - `<leader>rli(` → log inside parentheses
+
+### Log the current visual selection
+
+Select text in visual mode, then press the matching log mapping:
+
+- `v` + highlight + `<leader>rl`
+- `v` + highlight + `<leader>re`
 
 ### Log the word under the cursor
 

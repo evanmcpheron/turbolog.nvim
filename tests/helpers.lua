@@ -122,4 +122,14 @@ function M.set_motions_marks(start_line, start_col, end_line, end_col)
 	vim.api.nvim_buf_set_mark(0, "]", end_line, end_col, {})
 end
 
+---Set Neovim's visual selection marks for tests.
+---@param start_line integer
+---@param start_col integer
+---@param end_line integer
+---@param end_col integer
+function M.set_visual_marks(start_line, start_col, end_line, end_col)
+	vim.api.nvim_buf_set_mark(0, "<", start_line, start_col, {})
+	vim.api.nvim_buf_set_mark(0, ">", end_line, end_col, {})
+end
+
 return M

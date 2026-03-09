@@ -392,4 +392,96 @@ describe("rocketlog.actions", function()
 		restore_build()
 		restore_insert()
 	end)
+
+
+	it("logs the current visual selection", function()
+		local insert = require("rocketlog.insert")
+		local build = require("rocketlog.build")
+		local refresh = require("rocketlog.refresh")
+		local selection = require("rocketlog.selection")
+
+		local restore_selection = h.stub(selection, "get_visual_selection_text", function()
+			return "user.name", 1, 1, 6, 14, 0, 0
+		end)
+
+		local build_calls = {}
+		local restore_build = h.stub(build, "build_rocket_log_lines", function(file, line_num, expr, log_type)
+			table.insert(build_calls, { file = file, line_num = line_num, expr = expr, log_type = log_type })
+			return { "console.log('stub');" }
+		end)
+
+		local insert_calls = {}
+		local restore_insert = h.stub(insert, "insert_after_statement", function(lines, start_line, ctx)
+			table.insert(insert_calls, { lines = lines, start_line = start_line, ctx = ctx })
+			return 2, nil
+		end)
+
+		local refresh_calls = 0
+		local restore_refresh = h.stub(refresh, "refresh_buffer", function()
+			refresh_calls = refresh_calls + 1
+			return 0
+		end)
+
+		local feedkeys_calls = {}
+		local restore_replace = h.stub(vim.api, "nvim_replace_termcodes", function(keys)
+			return keys
+		end)
+		local restore_feedkeys = h.stub(vim.api, "nvim_feedkeys", function(keys, mode, escape)
+			table.insert(feedkeys_calls, { keys = keys, mode = mode, escape = escape })
+		end)
+
+		actions.visual_selection(nil)
+
+		restore_selection()
+		restore_build()
+		restore_insert()
+		restore_refresh()
+		restore_replace()
+		restore_feedkeys()
+
+		assert.are.equal(1, #build_calls)
+		assert.are.equal("user.name", build_calls[1].expr)
+		assert.are.equal(2, build_calls[1].line_num)
+		assert.is_nil(build_calls[1].log_type)
+
+		assert.are.equal(1, #insert_calls)
+		assert.are.equal(1, insert_calls[1].start_line)
+		assert.are.equal(1, refresh_calls)
+		assert.are.equal(1, #feedkeys_calls)
+		assert.are.equal("<Esc>", feedkeys_calls[1].keys)
+		assert.are.equal("nx", feedkeys_calls[1].mode)
+	end)
+
+	it("logs the current visual selection with error log type", function()
+		local build = require("rocketlog.build")
+		local insert = require("rocketlog.insert")
+		local selection = require("rocketlog.selection")
+
+		local restore_selection = h.stub(selection, "get_visual_selection_text", function()
+			return "user.name", 1, 1, 6, 14, 0, 0
+		end)
+
+		local restore_build = h.stub(build, "build_rocket_log_lines", function(_, _, _, log_type)
+			assert.are.equal("error", log_type)
+			return { "console.error('stub');" }
+		end)
+
+		local restore_insert = h.stub(insert, "insert_after_statement", function()
+			return 2, nil
+		end)
+
+		local restore_replace = h.stub(vim.api, "nvim_replace_termcodes", function(keys)
+			return keys
+		end)
+		local restore_feedkeys = h.stub(vim.api, "nvim_feedkeys", function() end)
+
+		actions.visual_selection("error")
+
+		restore_selection()
+		restore_build()
+		restore_insert()
+		restore_replace()
+		restore_feedkeys()
+	end)
+
 end)

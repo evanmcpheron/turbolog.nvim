@@ -101,6 +101,63 @@ describe("rocketlog.selection", function()
 		assert.is_true(end_col >= 0)
 	end)
 
+	it("extracts a characterwise visual selection correctly", function()
+		h.set_buffer({ "const answer = 42;" }, { filetype = "typescript" })
+		h.set_visual_marks(1, 6, 1, 11)
+
+		local restore_visualmode = h.stub(vim.fn, "visualmode", function()
+			return "v"
+		end)
+
+		local text, start_line, end_line, start_col, end_col = selection.get_visual_selection_text()
+		restore_visualmode()
+
+		assert.are.equal("answer", text)
+		assert.are.equal(1, start_line)
+		assert.are.equal(1, end_line)
+		assert.are.equal(6, start_col)
+		assert.are.equal(11, end_col)
+	end)
+
+	it("extracts a linewise visual selection correctly", function()
+		h.set_buffer({
+			"const a = 1;",
+			"const b = 2;",
+			"const c = 3;",
+		}, { filetype = "typescript" })
+		h.set_visual_marks(1, 2, 2, 4)
+
+		local restore_visualmode = h.stub(vim.fn, "visualmode", function()
+			return "V"
+		end)
+
+		local text, start_line, end_line, start_col = selection.get_visual_selection_text()
+		restore_visualmode()
+
+		assert.are.equal("const a = 1;\nconst b = 2;", text)
+		assert.are.equal(1, start_line)
+		assert.are.equal(2, end_line)
+		assert.are.equal(0, start_col)
+	end)
+
+	it("normalizes reversed visual marks", function()
+		h.set_buffer({ "const answer = 42;" }, { filetype = "typescript" })
+		h.set_visual_marks(1, 11, 1, 6)
+
+		local restore_visualmode = h.stub(vim.fn, "visualmode", function()
+			return "v"
+		end)
+
+		local text, start_line, end_line, start_col, end_col = selection.get_visual_selection_text()
+		restore_visualmode()
+
+		assert.are.equal("answer", text)
+		assert.are.equal(1, start_line)
+		assert.are.equal(1, end_line)
+		assert.are.equal(6, start_col)
+		assert.are.equal(11, end_col)
+	end)
+
 	it("extracts word under cursor correctly if module supports it", function()
 		-- This module currently only reads marks (motionsfunc selections).
 		assert.is_nil(selection.get_word_under_cursor)
