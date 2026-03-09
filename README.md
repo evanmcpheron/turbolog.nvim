@@ -16,7 +16,7 @@ console.info(`🚀[ROCKETLOG] ~ file.ts:123 ~ variableName:`, variableName);
 
 ## Features
 
-- **Motions-pending logging** (works with motions/text objects)
+- **Operator-pending logging** (works with motions/text objects)
 - **Word-under-cursor logging**
 - Supports:
   - `console.log`
@@ -33,16 +33,15 @@ console.info(`🚀[ROCKETLOG] ~ file.ts:123 ~ variableName:`, variableName);
   - Delete next RocketLog
   - Delete previous RocketLog
   - Clear all RocketLogs in the current buffer
+- Project-wide RocketLog search via `snacks.nvim` picker integration
 
-![202602240806-ezgif com-video-to-gif-converter (1)](https://github.com/user-attachments/assets/4e6cf464-e8c2-4b1f-bd52-105f84e0cbc5)
-ea57bb
-<img width="2904" height="1640" alt="image" src="https://github.com/user-attachments/assets/eaedcc6b-ccdd-4e72-b035-2618678aafed" />
+![RocketLog demo](https://github.com/user-attachments/assets/4e6cf464-e8c2-4b1f-bd52-105f84e0cbc5)
 
 ---
 
 ## Default Keymaps
 
-### Insert logs (VIM-motions-pending)
+### Insert logs (operator-pending)
 
 Use the motions mapping followed by a motion or text object.
 
@@ -64,6 +63,10 @@ Use the motions mapping followed by a motion or text object.
 - `<leader>rD` → delete nearest RocketLog above the cursor
 - `<leader>ra` → delete **ALL** RocketLogs in the current buffer
 
+### Find logs
+
+- `<leader>rf` → open the RocketLog picker
+
 ---
 
 ## Installation (lazy.nvim)
@@ -74,6 +77,8 @@ Use the motions mapping followed by a motion or text object.
   dependencies = {
     -- Recommended for syntax-aware insertion
     "nvim-treesitter/nvim-treesitter",
+    -- Optional picker used by :RocketLogFind and <leader>rf
+    "folke/snacks.nvim",
   },
   config = function()
     require("rocketlog").setup()
@@ -103,21 +108,22 @@ require("rocketlog").setup({
     delete_below = "<leader>rd",
     delete_above = "<leader>rD",
     delete_all_buffer = "<leader>ra",
+    find = "<leader>rf",
   },
 
   enabled = true,
 
-  label = "ROCKETLOG", -- customize your label that goes in the []
+  label = "ROCKETLOG", -- customize the marker label inside []
 
   -- Refresh RocketLog file:line labels automatically
   refresh_on_save = true, -- updates line numbers on file save when true
   refresh_on_insert = true, -- updates line numbers for entire file when adding a new log
 
   -- Insertion strategy
-  prefer_treesitter = true, -- Highly recommended to keep true... It may not work if it's false.
-  fallback_to_heuristics = true, -- this is a "fail-safe" (recommended to keep true)
+  prefer_treesitter = true, -- strongly recommended
+  fallback_to_heuristics = true, -- best-effort fallback when Tree-sitter is unavailable
 
-  -- Filetypes allowed for insertion
+  -- Filetypes allowed for insertion and refresh
   allowed_filetypes = {
     javascript = true,
     javascriptreact = true,
@@ -146,7 +152,7 @@ Press the motions mapping, then a motion/text object:
 ### Insert an error log instead
 
 - `<leader>rE` (word under cursor)
-- `<leader>reiw` (motions + text object)
+- `<leader>reiw` (operator-pending + text object)
 
 ---
 
@@ -166,8 +172,9 @@ When code shifts and line numbers change, RocketLog can refresh the labels autom
 ## Notes
 
 - **Tree-sitter is strongly recommended** for safer insertion, especially around multiline chains, object literals, and nested expressions.
-- If Tree-sitter is unavailable or cannot parse the current buffer, RocketLog can fall back to line-based insertion (if enabled).
+- If Tree-sitter is unavailable or cannot parse the current buffer, RocketLog can fall back to line-based insertion when `fallback_to_heuristics = true`.
 - RocketLog will warn and skip insertion in contexts where adding a statement would break syntax (for example, inside an implicit arrow function return).
+- The fallback insertion path is best-effort logic, not a full parser.
 
 ---
 
@@ -183,24 +190,12 @@ vim.g.rocketlog_disable_auto_setup = true
 
 ---
 
+## Help
+
+The repo includes vimdoc at `doc/rocketlog.txt`, so users can install helptags and use `:help rocketlog`.
+
+---
+
 ## License
 
 MIT License
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.

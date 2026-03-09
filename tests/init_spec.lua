@@ -1,8 +1,13 @@
+local h = require("tests.helpers")
+
 describe("rocketlog.init", function()
 	local rocketlog
 
 	before_each(function()
 		vim.g.rocketlog_disable_auto_setup = true
+		_G.RocketLogs = nil
+		_G.__rocket_log_type = nil
+		_G.__rocket_log_anchor_line = nil
 
 		package.loaded["rocketlog"] = nil
 		package.loaded["rocketlog.init"] = nil
@@ -42,7 +47,6 @@ describe("rocketlog.init", function()
 				find = false,
 			},
 		})
-		-- Vim returns 2 for a user-defined Ex command.
 		assert.are.equal(2, vim.fn.exists(":RocketLogFind"))
 	end)
 
@@ -108,5 +112,133 @@ describe("rocketlog.init", function()
 		})
 
 		assert.are.equal("SECOND", rocketlog.config.label)
+	end)
+
+	it("operator-pending mapping uses operatorfunc and stages the log type", function()
+		local captured_callback
+		local restore_set = h.stub(vim.keymap, "set", function(_, lhs, rhs, opts)
+			if lhs == "gm" then
+				captured_callback = rhs
+				assert.is_true(opts.expr)
+			end
+		end)
+
+		local restore_line = h.stub(vim.fn, "line", function(arg)
+			if arg == "." then
+				return 7
+			end
+			return 1
+		end)
+
+		rocketlog.setup({
+			keymaps = {
+				motions = "gm",
+				word = false,
+				error_motions = false,
+				error_word = false,
+				warn_motions = false,
+				warn_word = false,
+				info_motions = false,
+				info_word = false,
+				delete_below = false,
+				delete_above = false,
+				delete_all_buffer = false,
+				find = false,
+			},
+		})
+
+		assert.is_truthy(captured_callback)
+		assert.are.equal("g@", captured_callback())
+		assert.are.equal(7, _G.__rocket_log_anchor_line)
+		assert.are.equal("log", _G.__rocket_log_type)
+		assert.are.equal("v:lua.__rocket_log_motions", vim.o.operatorfunc)
+
+		restore_set()
+		restore_line()
+	end)
+
+	it("setup removes stale keymaps before registering new ones", function()
+		local deleted = {}
+		local restore_del = h.stub(vim.keymap, "del", function(_, lhs)
+			table.insert(deleted, lhs)
+		end)
+
+		rocketlog.setup({
+			keymaps = {
+				motions = "gm",
+				word = false,
+				error_motions = false,
+				error_word = false,
+				warn_motions = false,
+				warn_word = false,
+				info_motions = false,
+				info_word = false,
+				delete_below = false,
+				delete_above = false,
+				delete_all_buffer = false,
+				find = false,
+			},
+		})
+
+		rocketlog.setup({
+			keymaps = {
+				motions = false,
+				word = false,
+				error_motions = false,
+				error_word = false,
+				warn_motions = false,
+				warn_word = false,
+				info_motions = false,
+				info_word = false,
+				delete_below = false,
+				delete_above = false,
+				delete_all_buffer = false,
+				find = false,
+			},
+		})
+
+		assert.is_true(vim.tbl_contains(deleted, "gm"))
+		restore_del()
+	end)
+
+	it("refresh-on-save autocmd respects supported filetypes", function()
+		local refresh = require("rocketlog.refresh")
+		local calls = 0
+
+		local restore_refresh = h.stub(refresh, "refresh_buffer", function()
+			calls = calls + 1
+			return 0
+		end)
+
+		local bufnr = h.set_buffer({
+			"console.log(`🚀[ROCKETLOG] ~ wrong.ts:1 ~ x:`, x);",
+		}, { filetype = "typescript", name = "/tmp/test.ts" })
+
+		rocketlog.setup({ keymaps = { motions = false, word = false } })
+		vim.api.nvim_exec_autocmds("BufWritePre", { buffer = bufnr })
+		assert.are.equal(1, calls)
+
+		vim.bo[bufnr].filetype = "lua"
+		vim.api.nvim_exec_autocmds("BufWritePre", { buffer = bufnr })
+		assert.are.equal(1, calls)
+
+		restore_refresh()
+	end)
+
+	it("plugin auto-setup honors the disable flag", function()
+		local calls = 0
+		local restore_setup = h.stub(rocketlog, "setup", function()
+			calls = calls + 1
+		end)
+
+		vim.g.rocketlog_disable_auto_setup = false
+		dofile(vim.fn.getcwd() .. "/plugin/rocketlog.lua")
+		assert.are.equal(1, calls)
+
+		vim.g.rocketlog_disable_auto_setup = true
+		dofile(vim.fn.getcwd() .. "/plugin/rocketlog.lua")
+		assert.are.equal(1, calls)
+
+		restore_setup()
 	end)
 end)

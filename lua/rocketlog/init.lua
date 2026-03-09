@@ -3,58 +3,90 @@ local actions = require("rocketlog.actions")
 local refresh = require("rocketlog.refresh")
 local delete = require("rocketlog.delete")
 
--- A stable global you can hang helpers off of.
--- (Lua global table is `_G`, not `__G`.)
 _G.RocketLogs = _G.RocketLogs or {}
 local M = _G.RocketLogs
 
--- Expose runtime config (kept in a separate module).
 M.config = config.config
+M._registered_keymaps = M._registered_keymaps or {}
 
 -- Must be global because Neovim's operatorfunc requires a global function reference.
 _G.__rocket_log_motions = function(optype)
 	local log_type = _G.__rocket_log_type or "log"
 	require("rocketlog").motions(optype, log_type)
-
 	_G.__rocket_log_type = nil
 end
 
----Motions entrypoint (used by g@ via operatorfunc).
 ---@param optype string
 ---@param log_type string|nil Optional log type (e.g., "error") to determine console method
 function M.motions(optype, log_type)
 	actions.motions(optype, log_type)
 end
 
----Insert a rocket log for the word currently under the cursor.
 ---@param log_type string|nil Optional log type (e.g., "error") to determine console method
 function M.log_word_under_cursor(log_type)
 	actions.log_word_under_cursor(log_type)
 end
 
----Open Telescope and list only RocketLog entries.
----@param opts table|nil Optional Telescope picker options
+---@param opts table|nil Optional picker options
 ---@return nil
 function M.find_logs(opts)
 	require("rocketlog.telescope").find_logs(opts)
 end
 
----Delete the nearest RocketLog below the cursor.
 ---@return boolean
 function M.delete_next_log()
 	return delete.delete_next_log()
 end
 
----Delete the nearest RocketLog above the cursor.
 ---@return boolean
 function M.delete_prev_log()
 	return delete.delete_prev_log()
 end
 
----Delete all RocketLogs in the current buffer.
 ---@return integer
 function M.clear_buffer_logs()
 	return delete.clear_buffer_logs()
+end
+
+local function clear_registered_keymaps()
+	for _, lhs in ipairs(M._registered_keymaps) do
+		pcall(vim.keymap.del, "n", lhs)
+	end
+	M._registered_keymaps = {}
+end
+
+---@param lhs string|false|nil
+---@param rhs function
+---@param desc string
+---@param opts table|nil
+local function register_keymap(lhs, rhs, desc, opts)
+	if not lhs or lhs == false then
+		return
+	end
+
+	local merged_opts = vim.tbl_deep_extend("force", { desc = desc }, opts or {})
+	vim.keymap.set("n", lhs, rhs, merged_opts)
+	table.insert(M._registered_keymaps, lhs)
+end
+
+---@param log_type string
+---@param desc string
+---@return function
+local function make_operator_mapping(log_type, desc)
+	return function()
+		_G.__rocket_log_anchor_line = vim.fn.line(".")
+		_G.__rocket_log_type = log_type
+		vim.o.operatorfunc = "v:lua.__rocket_log_motions"
+		return "g@"
+	end, { expr = true, desc = desc }
+end
+
+---@param log_type string
+---@return function
+local function make_word_mapping(log_type)
+	return function()
+		require("rocketlog").log_word_under_cursor(log_type)
+	end
 end
 
 ---Setup plugin configuration, keymaps, and commands.
@@ -63,143 +95,89 @@ function M.setup(opts)
 	config.apply(opts)
 	M.config = config.config
 
+	clear_registered_keymaps()
+	pcall(vim.api.nvim_del_user_command, "RocketLogFind")
+
 	if not config.config.enabled then
 		return
 	end
 
-	local keymap_config = config.config.keymaps
-	-- Expose a command for project-wide RocketLog discovery.
-	pcall(vim.api.nvim_del_user_command, "RocketLogFind")
 	vim.api.nvim_create_user_command("RocketLogFind", function()
 		require("rocketlog").find_logs()
-	end, { desc = "Open Telescope with RocketLog entries" })
+	end, { desc = "Open picker with RocketLog entries" })
 
-	-- Motions-pending mapping for the configured default console method.
+	local keymap_config = config.config.keymaps
 
-	-- Motions-pending mapping for error logging (motion/textobject based)
-	if keymap_config.motions and keymap_config.motions ~= false then
-		vim.keymap.set("n", keymap_config.motions, function()
-			-- Save cursor line before g@ motion executes so we can anchor insertion.
-			_G.__rocket_log_anchor_line = vim.fn.line(".")
-			-- Tell the motions which console method to use
-			_G.__rocket_log_type = "log"
-			vim.o.operatorfunc = "v:lua.__rocket_log_motions"
-			return "g@"
-		end, { expr = true, desc = "Rocket log motions (motion/textobject)" })
-	end
+	local motions_rhs, motions_opts = make_operator_mapping("log", "Rocket log motions (motion/textobject)")
+	register_keymap(keymap_config.motions, motions_rhs, motions_opts.desc, motions_opts)
 
-	-- Word-under-cursor mapping
-	if keymap_config.word and keymap_config.word ~= false then
-		vim.keymap.set("n", keymap_config.word, function()
-			require("rocketlog").log_word_under_cursor("log")
-		end, { desc = "Rocket log word under cursor" })
-	end
+	register_keymap(
+		keymap_config.word,
+		make_word_mapping("log"),
+		"Rocket log word under cursor"
+	)
 
-	-- Word-under-cursor mapping for error logs
-	if keymap_config.error_word and keymap_config.error_word ~= false then
-		vim.keymap.set("n", keymap_config.error_word, function()
-			require("rocketlog").log_word_under_cursor("error")
-		end, { desc = "Rocket error log word under cursor" })
-	end
+	register_keymap(
+		keymap_config.error_word,
+		make_word_mapping("error"),
+		"Rocket error log word under cursor"
+	)
 
-	-- Motions-pending mapping for error logging (motion/textobject based)
-	if keymap_config.error_motions and keymap_config.error_motions ~= false then
-		vim.keymap.set("n", keymap_config.error_motions, function()
-			-- Save cursor line before g@ motion executes so we can anchor insertion.
-			_G.__rocket_log_anchor_line = vim.fn.line(".")
-			-- Tell the motions which console method to use
-			_G.__rocket_log_type = "error"
-			vim.o.operatorfunc = "v:lua.__rocket_log_motions"
-			return "g@"
-		end, { expr = true, desc = "Rocket error log motions (motion/textobject)" })
-	end
+	local error_rhs, error_opts =
+		make_operator_mapping("error", "Rocket error log motions (motion/textobject)")
+	register_keymap(keymap_config.error_motions, error_rhs, error_opts.desc, error_opts)
 
-	-- Word-under-cursor mapping for warn logs
-	if keymap_config.warn_word and keymap_config.warn_word ~= false then
-		vim.keymap.set("n", keymap_config.warn_word, function()
-			require("rocketlog").log_word_under_cursor("warn")
-		end, { desc = "Rocket warn log word under cursor" })
-	end
+	register_keymap(
+		keymap_config.warn_word,
+		make_word_mapping("warn"),
+		"Rocket warn log word under cursor"
+	)
 
-	-- Motions-pending mapping for warn logging (motion/textobject based)
-	if keymap_config.warn_motions and keymap_config.warn_motions ~= false then
-		vim.keymap.set("n", keymap_config.warn_motions, function()
-			-- Save cursor line before g@ motion executes so we can anchor insertion.
-			_G.__rocket_log_anchor_line = vim.fn.line(".")
-			-- Tell the motions which console method to use
-			_G.__rocket_log_type = "warn"
-			vim.o.operatorfunc = "v:lua.__rocket_log_motions"
-			return "g@"
-		end, { expr = true, desc = "Rocket warn log motions (motion/textobject)" })
-	end
+	local warn_rhs, warn_opts =
+		make_operator_mapping("warn", "Rocket warn log motions (motion/textobject)")
+	register_keymap(keymap_config.warn_motions, warn_rhs, warn_opts.desc, warn_opts)
 
-	-- Word-under-cursor mapping for info logs
-	if keymap_config.info_word and keymap_config.info_word ~= false then
-		vim.keymap.set("n", keymap_config.info_word, function()
-			require("rocketlog").log_word_under_cursor("info")
-		end, { desc = "Rocket info log word under cursor" })
-	end
+	register_keymap(
+		keymap_config.info_word,
+		make_word_mapping("info"),
+		"Rocket info log word under cursor"
+	)
 
-	-- Motions-pending mapping for info logging (motion/textobject based)
-	if keymap_config.info_motions and keymap_config.info_motions ~= false then
-		vim.keymap.set("n", keymap_config.info_motions, function()
-			-- Save cursor line before g@ motion executes so we can anchor insertion.
-			_G.__rocket_log_anchor_line = vim.fn.line(".")
-			-- Tell the motions which console method to use
-			_G.__rocket_log_type = "info"
-			vim.o.operatorfunc = "v:lua.__rocket_log_motions"
-			return "g@"
-		end, { expr = true, desc = "Rocket info log motions (motion/textobject)" })
-	end
+	local info_rhs, info_opts =
+		make_operator_mapping("info", "Rocket info log motions (motion/textobject)")
+	register_keymap(keymap_config.info_motions, info_rhs, info_opts.desc, info_opts)
 
-	-- Open Telescope scoped to RocketLog entries only.
-	if keymap_config.find and keymap_config.find ~= false then
-		vim.keymap.set("n", keymap_config.find, function()
-			require("rocketlog").find_logs()
-		end, { desc = "Find RocketLog entries" })
-	end
+	register_keymap(keymap_config.find, function()
+		require("rocketlog").find_logs()
+	end, "Find RocketLog entries")
 
-	-- Delete all RocketLogs in the current buffer
-	if keymap_config.delete_all_buffer and keymap_config.delete_all_buffer ~= false then
-		vim.keymap.set("n", keymap_config.delete_all_buffer, function()
-			require("rocketlog").clear_buffer_logs()
-		end, { desc = "Delete all RocketLogs in buffer" })
-	end
+	register_keymap(keymap_config.delete_all_buffer, function()
+		require("rocketlog").clear_buffer_logs()
+	end, "Delete all RocketLogs in buffer")
 
-	-- Delete the next RocketLog below the cursor
-	if keymap_config.delete_below and keymap_config.delete_below ~= false then
-		vim.keymap.set("n", keymap_config.delete_below, function()
-			require("rocketlog").delete_next_log()
-		end, { desc = "Delete next RocketLog below" })
-	end
+	register_keymap(keymap_config.delete_below, function()
+		require("rocketlog").delete_next_log()
+	end, "Delete next RocketLog below")
 
-	-- Delete the nearest RocketLog above the cursor
-	if keymap_config.delete_above and keymap_config.delete_above ~= false then
-		vim.keymap.set("n", keymap_config.delete_above, function()
-			require("rocketlog").delete_prev_log()
-		end, { desc = "Delete RocketLog above" })
-	end
+	register_keymap(keymap_config.delete_above, function()
+		require("rocketlog").delete_prev_log()
+	end, "Delete RocketLog above")
 end
 
 vim.api.nvim_create_autocmd("BufWritePre", {
 	group = vim.api.nvim_create_augroup("RocketLogRefreshOnSave", { clear = true }),
-	pattern = { "*.js", "*.jsx", "*.ts", "*.tsx" },
+	pattern = "*",
 	callback = function()
-		local rocketlog = require("rocketlog")
-
-		-- Respect plugin enabled flag if you already use one
-		if rocketlog.config and rocketlog.config.enabled == false then
+		if config.config.enabled == false or config.config.refresh_on_save == false then
 			return
 		end
 
-		-- Configurable, default true
-		if rocketlog.config and rocketlog.config.refresh_on_save == false then
+		if vim.bo.buftype ~= "" then
 			return
 		end
 
-		-- Optional guard check
 		local ok, guards = pcall(require, "rocketlog.guards")
-		if ok and not guards.is_supported_filetype() then
+		if not ok or not guards.is_supported_filetype() then
 			return
 		end
 
