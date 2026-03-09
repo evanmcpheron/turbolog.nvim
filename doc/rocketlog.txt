@@ -1,0 +1,86 @@
+*rocketlog.txt*  Structured console logging for JavaScript and TypeScript
+
+===============================================================================
+CONTENTS                                                *rocketlog-contents*
+
+1. Introduction ................................................ *rocketlog*
+2. Setup ....................................................... *rocketlog-setup*
+3. Configuration ............................................... *rocketlog-config*
+4. Commands and keymaps ........................................ *rocketlog-usage*
+
+===============================================================================
+INTRODUCTION                                              *rocketlog*
+
+rocketlog.nvim inserts structured console.* statements for JavaScript and
+TypeScript buffers. Logs include a RocketLog marker, file name, and line
+number. The plugin can also refresh those labels as code moves.
+
+===============================================================================
+SETUP                                                *rocketlog-setup*
+
+Example with lazy.nvim >
+
+  {
+    "evanmcpheron/rocketlog.nvim",
+    dependencies = {
+      "nvim-treesitter/nvim-treesitter",
+      "folke/snacks.nvim",
+    },
+    config = function()
+      require("rocketlog").setup()
+    end,
+  }
+<
+
+Disable auto setup before the plugin loads >
+
+  vim.g.rocketlog_disable_auto_setup = true
+<
+
+===============================================================================
+CONFIGURATION                                        *rocketlog-config*
+
+Example >
+
+  require("rocketlog").setup({
+    label = "ROCKETLOG",
+    refresh_on_save = true,
+    refresh_on_insert = true,
+    prefer_treesitter = true,
+    fallback_to_heuristics = true,
+    allowed_filetypes = {
+      javascript = true,
+      javascriptreact = true,
+      typescript = true,
+      typescriptreact = true,
+    },
+  })
+<
+
+Notes:
+- Tree-sitter is strongly recommended.
+- Heuristic fallback is best-effort logic when Tree-sitter is unavailable.
+- Refresh-on-save respects |rocketlog-config| > allowed_filetypes.
+
+===============================================================================
+COMMANDS AND KEYMAPS                                    *rocketlog-usage*
+
+Commands:
+- :RocketLogFind       Open the RocketLog picker.
+
+Default keymaps:
+- <leader>rl           Insert console.log using operator-pending motions.
+- <leader>rL           Log the word under cursor with console.log.
+- <leader>re           Insert console.error using operator-pending motions.
+- <leader>rE           Log the word under cursor with console.error.
+- <leader>rw           Insert console.warn using operator-pending motions.
+- <leader>rW           Log the word under cursor with console.warn.
+- <leader>ri           Insert console.info using operator-pending motions.
+- <leader>rI           Log the word under cursor with console.info.
+- <leader>rd           Delete the next RocketLog below the cursor.
+- <leader>rD           Delete the nearest RocketLog above the cursor.
+- <leader>ra           Delete all RocketLogs in the current buffer.
+- <leader>rf           Open the RocketLog picker.
+
+===============================================================================
+vim:tw=78:ts=8:ft=help:norl:
