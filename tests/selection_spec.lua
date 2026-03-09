@@ -101,6 +101,85 @@ describe("rocketlog.selection", function()
 		assert.is_true(end_col >= 0)
 	end)
 
+	it("extracts a characterwise visual selection correctly", function()
+		h.set_buffer({ "const answer = 42;" }, { filetype = "typescript" })
+
+		local restore_visualmode = h.stub(vim.fn, "visualmode", function()
+			return "v"
+		end)
+
+		local restore_getpos = h.stub(vim.fn, "getpos", function(mark)
+			if mark == "v" then
+				return { 0, 1, 7, 0 }
+			end
+			if mark == "." then
+				return { 0, 1, 12, 0 }
+			end
+			return { 0, 0, 0, 0 }
+		end)
+
+		local text = selection.get_visual_selection_text()
+
+		restore_visualmode()
+		restore_getpos()
+
+		assert.are.equal("answer", text)
+	end)
+
+	it("extracts a linewise visual selection correctly", function()
+		h.set_buffer({
+			"const a = 1;",
+			"const b = 2;",
+			"const c = 3;",
+		}, { filetype = "typescript" })
+
+		local restore_visualmode = h.stub(vim.fn, "visualmode", function()
+			return "V"
+		end)
+
+		local restore_getpos = h.stub(vim.fn, "getpos", function(mark)
+			if mark == "v" then
+				return { 0, 1, 1, 0 }
+			end
+			if mark == "." then
+				return { 0, 2, 1, 0 }
+			end
+			return { 0, 0, 0, 0 }
+		end)
+
+		local text = selection.get_visual_selection_text()
+
+		restore_visualmode()
+		restore_getpos()
+
+		assert.are.equal("const a = 1;\nconst b = 2;", text)
+	end)
+
+	it("normalizes reversed visual marks", function()
+		h.set_buffer({ "const answer = 42;" }, { filetype = "typescript" })
+
+		local restore_visualmode = h.stub(vim.fn, "visualmode", function()
+			return "v"
+		end)
+
+		local restore_getpos = h.stub(vim.fn, "getpos", function(mark)
+			if mark == "v" then
+				return { 0, 1, 12, 0 }
+			end
+			if mark == "." then
+				return { 0, 1, 7, 0 }
+			end
+			return { 0, 0, 0, 0 }
+		end)
+
+		local text = selection.get_visual_selection_text()
+
+		restore_visualmode()
+		restore_getpos()
+
+		assert.are.equal("answer", text)
+	end)
+
 	it("extracts word under cursor correctly if module supports it", function()
 		-- This module currently only reads marks (motionsfunc selections).
 		assert.is_nil(selection.get_word_under_cursor)

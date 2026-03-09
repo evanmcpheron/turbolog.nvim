@@ -23,6 +23,11 @@ function M.motions(optype, log_type)
 end
 
 ---@param log_type string|nil Optional log type (e.g., "error") to determine console method
+function M.visual_selection(log_type)
+	actions.visual_selection(log_type)
+end
+
+---@param log_type string|nil Optional log type (e.g., "error") to determine console method
 function M.log_word_under_cursor(log_type)
 	actions.log_word_under_cursor(log_type)
 end
@@ -49,24 +54,25 @@ function M.clear_buffer_logs()
 end
 
 local function clear_registered_keymaps()
-	for _, lhs in ipairs(M._registered_keymaps) do
-		pcall(vim.keymap.del, "n", lhs)
+	for _, entry in ipairs(M._registered_keymaps) do
+		pcall(vim.keymap.del, entry.mode, entry.lhs)
 	end
 	M._registered_keymaps = {}
 end
 
+---@param mode string|string[]
 ---@param lhs string|false|nil
 ---@param rhs function
 ---@param desc string
 ---@param opts table|nil
-local function register_keymap(lhs, rhs, desc, opts)
+local function register_keymap(mode, lhs, rhs, desc, opts)
 	if not lhs or lhs == false then
 		return
 	end
 
 	local merged_opts = vim.tbl_deep_extend("force", { desc = desc }, opts or {})
-	vim.keymap.set("n", lhs, rhs, merged_opts)
-	table.insert(M._registered_keymaps, lhs)
+	vim.keymap.set(mode, lhs, rhs, merged_opts)
+	table.insert(M._registered_keymaps, { mode = mode, lhs = lhs })
 end
 
 ---@param log_type string
@@ -86,6 +92,14 @@ end
 local function make_word_mapping(log_type)
 	return function()
 		require("rocketlog").log_word_under_cursor(log_type)
+	end
+end
+
+---@param log_type string
+---@return function
+local function make_visual_mapping(log_type)
+	return function()
+		require("rocketlog").visual_selection(log_type)
 	end
 end
 
@@ -109,15 +123,18 @@ function M.setup(opts)
 	local keymap_config = config.config.keymaps
 
 	local motions_rhs, motions_opts = make_operator_mapping("log", "Rocket log motions (motion/textobject)")
-	register_keymap(keymap_config.motions, motions_rhs, motions_opts.desc, motions_opts)
+	register_keymap("n", keymap_config.motions, motions_rhs, motions_opts.desc, motions_opts)
+	register_keymap("x", keymap_config.visual, make_visual_mapping("log"), "Rocket log visual selection")
 
 	register_keymap(
+		"n",
 		keymap_config.word,
 		make_word_mapping("log"),
 		"Rocket log word under cursor"
 	)
 
 	register_keymap(
+		"n",
 		keymap_config.error_word,
 		make_word_mapping("error"),
 		"Rocket error log word under cursor"
@@ -125,9 +142,16 @@ function M.setup(opts)
 
 	local error_rhs, error_opts =
 		make_operator_mapping("error", "Rocket error log motions (motion/textobject)")
-	register_keymap(keymap_config.error_motions, error_rhs, error_opts.desc, error_opts)
+	register_keymap("n", keymap_config.error_motions, error_rhs, error_opts.desc, error_opts)
+	register_keymap(
+		"x",
+		keymap_config.error_visual,
+		make_visual_mapping("error"),
+		"Rocket error log visual selection"
+	)
 
 	register_keymap(
+		"n",
 		keymap_config.warn_word,
 		make_word_mapping("warn"),
 		"Rocket warn log word under cursor"
@@ -135,9 +159,16 @@ function M.setup(opts)
 
 	local warn_rhs, warn_opts =
 		make_operator_mapping("warn", "Rocket warn log motions (motion/textobject)")
-	register_keymap(keymap_config.warn_motions, warn_rhs, warn_opts.desc, warn_opts)
+	register_keymap("n", keymap_config.warn_motions, warn_rhs, warn_opts.desc, warn_opts)
+	register_keymap(
+		"x",
+		keymap_config.warn_visual,
+		make_visual_mapping("warn"),
+		"Rocket warn log visual selection"
+	)
 
 	register_keymap(
+		"n",
 		keymap_config.info_word,
 		make_word_mapping("info"),
 		"Rocket info log word under cursor"
@@ -145,21 +176,27 @@ function M.setup(opts)
 
 	local info_rhs, info_opts =
 		make_operator_mapping("info", "Rocket info log motions (motion/textobject)")
-	register_keymap(keymap_config.info_motions, info_rhs, info_opts.desc, info_opts)
+	register_keymap("n", keymap_config.info_motions, info_rhs, info_opts.desc, info_opts)
+	register_keymap(
+		"x",
+		keymap_config.info_visual,
+		make_visual_mapping("info"),
+		"Rocket info log visual selection"
+	)
 
-	register_keymap(keymap_config.find, function()
+	register_keymap("n", keymap_config.find, function()
 		require("rocketlog").find_logs()
 	end, "Find RocketLog entries")
 
-	register_keymap(keymap_config.delete_all_buffer, function()
+	register_keymap("n", keymap_config.delete_all_buffer, function()
 		require("rocketlog").clear_buffer_logs()
 	end, "Delete all RocketLogs in buffer")
 
-	register_keymap(keymap_config.delete_below, function()
+	register_keymap("n", keymap_config.delete_below, function()
 		require("rocketlog").delete_next_log()
 	end, "Delete next RocketLog below")
 
-	register_keymap(keymap_config.delete_above, function()
+	register_keymap("n", keymap_config.delete_above, function()
 		require("rocketlog").delete_prev_log()
 	end, "Delete RocketLog above")
 end

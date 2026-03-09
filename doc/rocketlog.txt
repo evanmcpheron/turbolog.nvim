@@ -70,12 +70,16 @@ Commands:
 
 Default keymaps:
 - <leader>rl           Insert console.log using operator-pending motions.
+- <leader>rl (visual)  Log the current visual selection with console.log.
 - <leader>rL           Log the word under cursor with console.log.
 - <leader>re           Insert console.error using operator-pending motions.
+- <leader>re (visual)  Log the current visual selection with console.error.
 - <leader>rE           Log the word under cursor with console.error.
 - <leader>rw           Insert console.warn using operator-pending motions.
+- <leader>rw (visual)  Log the current visual selection with console.warn.
 - <leader>rW           Log the word under cursor with console.warn.
 - <leader>ri           Insert console.info using operator-pending motions.
+- <leader>ri (visual)  Log the current visual selection with console.info.
 - <leader>rI           Log the word under cursor with console.info.
 - <leader>rd           Delete the next RocketLog below the cursor.
 - <leader>rD           Delete the nearest RocketLog above the cursor.
