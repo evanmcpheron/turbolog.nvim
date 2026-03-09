@@ -210,10 +210,10 @@ describe("rocketlog.init", function()
 			return 0
 		end)
 
-		local bufnr = h.set_buffer({
-			"console.log(`🚀[ROCKETLOG] ~ wrong.ts:1 ~ x:`, x);",
-		}, { filetype = "typescript", name = "/tmp/test.ts" })
-
+		local bufnr = h.set_buffer(
+			{ "console.log(`🚀[ROCKETLOG] ~ wrong.ts:1 ~ x:`, x);" },
+			{ filetype = "typescript", name = "test.ts", scratch = false, buftype = "" }
+		)
 		rocketlog.setup({ keymaps = { motions = false, word = false } })
 		vim.api.nvim_exec_autocmds("BufWritePre", { buffer = bufnr })
 		assert.are.equal(1, calls)
