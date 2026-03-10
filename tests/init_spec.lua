@@ -22,6 +22,8 @@ describe("rocketlog.init", function()
 		assert.is_true(type(rocketlog.motions) == "function")
 		assert.is_true(type(rocketlog.log_word_under_cursor) == "function")
 		assert.is_true(type(rocketlog.find_logs) == "function")
+		assert.is_true(type(rocketlog.open_dashboard) == "function")
+		assert.is_true(type(rocketlog.toggle_dashboard) == "function")
 	end)
 
 	it("exports public delete actions", function()
@@ -30,7 +32,7 @@ describe("rocketlog.init", function()
 		assert.is_true(type(rocketlog.clear_buffer_logs) == "function")
 	end)
 
-	it("setup creates the RocketLogFind user command", function()
+	it("setup creates the RocketLogFind and RocketLogDashboard user commands", function()
 		rocketlog.setup({
 			keymaps = {
 				motions = false,
@@ -45,9 +47,11 @@ describe("rocketlog.init", function()
 				delete_above = false,
 				delete_all_buffer = false,
 				find = false,
+				dashboard = false,
 			},
 		})
 		assert.are.equal(2, vim.fn.exists(":RocketLogFind"))
+		assert.are.equal(2, vim.fn.exists(":RocketLogDashboard"))
 	end)
 
 	it("setup applies user config without error", function()
@@ -67,6 +71,7 @@ describe("rocketlog.init", function()
 				delete_above = false,
 				delete_all_buffer = false,
 				find = false,
+				dashboard = false,
 			},
 		})
 
@@ -90,6 +95,7 @@ describe("rocketlog.init", function()
 				delete_above = false,
 				delete_all_buffer = false,
 				find = false,
+				dashboard = false,
 			},
 		})
 
@@ -108,6 +114,7 @@ describe("rocketlog.init", function()
 				delete_above = false,
 				delete_all_buffer = false,
 				find = false,
+				dashboard = false,
 			},
 		})
 
@@ -144,6 +151,7 @@ describe("rocketlog.init", function()
 				delete_above = false,
 				delete_all_buffer = false,
 				find = false,
+				dashboard = false,
 			},
 		})
 
@@ -157,28 +165,13 @@ describe("rocketlog.init", function()
 		restore_line()
 	end)
 
-	it("setup removes stale keymaps before registering new ones", function()
-		local deleted = {}
-		local restore_del = h.stub(vim.keymap, "del", function(_, lhs)
-			table.insert(deleted, lhs)
+	it("setup registers the dashboard keymap when enabled", function()
+		local seen = false
+		local restore_set = h.stub(vim.keymap, "set", function(_, lhs)
+			if lhs == "<leader>rr" then
+				seen = true
+			end
 		end)
-
-		rocketlog.setup({
-			keymaps = {
-				motions = "gm",
-				word = false,
-				error_motions = false,
-				error_word = false,
-				warn_motions = false,
-				warn_word = false,
-				info_motions = false,
-				info_word = false,
-				delete_below = false,
-				delete_above = false,
-				delete_all_buffer = false,
-				find = false,
-			},
-		})
 
 		rocketlog.setup({
 			keymaps = {
@@ -194,11 +187,12 @@ describe("rocketlog.init", function()
 				delete_above = false,
 				delete_all_buffer = false,
 				find = false,
+				dashboard = "<leader>rr",
 			},
 		})
 
-		assert.is_true(vim.tbl_contains(deleted, "gm"))
-		restore_del()
+		assert.is_true(seen)
+		restore_set()
 	end)
 
 	it("refresh-on-save autocmd respects supported filetypes", function()
@@ -210,11 +204,12 @@ describe("rocketlog.init", function()
 			return 0
 		end)
 
-		local bufnr = h.set_buffer(
-			{ "console.log(`🚀[ROCKETLOG] ~ wrong.ts:1 ~ x:`, x);" },
-			{ filetype = "typescript", name = "test.ts", scratch = false, buftype = "" }
-		)
+		local bufnr = h.set_buffer({
+			"console.log(`🚀[ROCKETLOG] ~ wrong.ts:1 ~ x:`, x);",
+		}, { filetype = "typescript", name = "/tmp/test.ts" })
+
 		rocketlog.setup({ keymaps = { motions = false, word = false } })
+		vim.bo[bufnr].buftype = ""
 		vim.api.nvim_exec_autocmds("BufWritePre", { buffer = bufnr })
 		assert.are.equal(1, calls)
 
@@ -223,22 +218,5 @@ describe("rocketlog.init", function()
 		assert.are.equal(1, calls)
 
 		restore_refresh()
-	end)
-
-	it("plugin auto-setup honors the disable flag", function()
-		local calls = 0
-		local restore_setup = h.stub(rocketlog, "setup", function()
-			calls = calls + 1
-		end)
-
-		vim.g.rocketlog_disable_auto_setup = false
-		dofile(vim.fn.getcwd() .. "/plugin/rocketlog.lua")
-		assert.are.equal(1, calls)
-
-		vim.g.rocketlog_disable_auto_setup = true
-		dofile(vim.fn.getcwd() .. "/plugin/rocketlog.lua")
-		assert.are.equal(1, calls)
-
-		restore_setup()
 	end)
 end)

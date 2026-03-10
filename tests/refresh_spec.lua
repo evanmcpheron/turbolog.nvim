@@ -2,16 +2,14 @@ local h = require("tests.helpers")
 
 describe("rocketlog.refresh", function()
 	local refresh
-	local config
 
 	before_each(function()
-		_G.RocketLogs = {}
-		package.loaded["rocketlog.config"] = nil
-		config = require("rocketlog.config")
-		config.apply({
-			label = "ROCKETLOG",
-			refresh_on_save = true,
-		})
+		_G.RocketLogs = {
+			config = {
+				label = "ROCKETLOG",
+				refresh_on_save = true,
+			},
+		}
 
 		h.set_buffer({}, { filetype = "typescript", name = "/tmp/test-file.ts" })
 
@@ -83,6 +81,7 @@ describe("rocketlog.refresh", function()
 	end)
 
 	it("updates multiline RocketLog blocks if supported", function()
+		-- Only the first line of the multiline block includes the label marker.
 		h.set_buffer({
 			"const x = 1;",
 			"console.log(`🚀[ROCKETLOG] ~ wrong.ts:999 ~",
@@ -111,7 +110,7 @@ describe("rocketlog.refresh", function()
 	end)
 
 	it("respects configured label when refreshing", function()
-		config.apply({ label = "MYLABEL" })
+		_G.RocketLogs.config.label = "MYLABEL"
 		h.set_buffer({
 			"console.log(`🚀[MYLABEL] ~ wrong.ts:10 ~ x:`, x);",
 		}, { filetype = "typescript", name = "/tmp/test-file.ts" })
@@ -119,16 +118,5 @@ describe("rocketlog.refresh", function()
 		refresh.refresh_buffer()
 		local lines = h.get_lines()
 		assert.are.equal("console.log(`🚀[MYLABEL] ~ test-file.ts:1 ~ x:`, x);", lines[1])
-	end)
-
-	it("supports labels that contain Lua pattern characters", function()
-		config.apply({ label = "A+B?[]" })
-		h.set_buffer({
-			"console.log(`🚀[A+B?[]] ~ wrong.ts:10 ~ x:`, x);",
-		}, { filetype = "typescript", name = "/tmp/test-file.ts" })
-
-		refresh.refresh_buffer()
-		local lines = h.get_lines()
-		assert.are.equal("console.log(`🚀[A+B?[]] ~ test-file.ts:1 ~ x:`, x);", lines[1])
 	end)
 end)

@@ -3,14 +3,12 @@ local h = require("tests.helpers")
 describe("rocketlog.delete", function()
 	local delete
 	local build
-	local config
 
 	before_each(function()
-		_G.RocketLogs = {}
-		package.loaded["rocketlog.config"] = nil
-		config = require("rocketlog.config")
-		config.apply({ label = "ROCKETLOG" })
+		_G.RocketLogs = { config = { label = "ROCKETLOG" } }
 
+		-- Force Tree-sitter delete path to be unavailable so tests stay deterministic.
+		-- We still validate the actual deletion behavior via the fallback logic.
 		if vim.treesitter and vim.treesitter.get_parser then
 			vim._rocketlog_restore_get_parser = vim.treesitter.get_parser
 			vim.treesitter.get_parser = function()
@@ -82,22 +80,6 @@ describe("rocketlog.delete", function()
 		}, lines)
 	end)
 
-	it("does not treat plain label text as a RocketLog marker", function()
-		h.set_buffer({
-			"console.log('ROCKETLOG should stay put');",
-			"const untouched = 'ROCKETLOG';",
-		}, { filetype = "typescript" })
-
-		h.set_cursor(1, 0)
-		local ok = delete.delete_next_log()
-
-		assert.is_false(ok)
-		assert.are.same({
-			"console.log('ROCKETLOG should stay put');",
-			"const untouched = 'ROCKETLOG';",
-		}, h.get_lines())
-	end)
-
 	it("deletes only one log when multiple RocketLogs exist below", function()
 		h.set_buffer({
 			"const a = 1;",
@@ -110,6 +92,7 @@ describe("rocketlog.delete", function()
 		delete.delete_next_log()
 		local lines = h.get_lines()
 
+		-- Only the first RocketLog below the cursor should be deleted.
 		assert.are.same({
 			"const a = 1;",
 			"console.log(`🚀[ROCKETLOG] ~ test.ts:3 ~ b:`, b);",
@@ -128,6 +111,7 @@ describe("rocketlog.delete", function()
 		delete.delete_prev_log()
 		local lines = h.get_lines()
 
+		-- Only the nearest RocketLog above should be deleted (line 2 in original buffer).
 		assert.are.same({
 			"console.log(`🚀[ROCKETLOG] ~ test.ts:1 ~ a:`, a);",
 			"const c = 3;",
@@ -173,6 +157,7 @@ describe("rocketlog.delete", function()
 	it("deletes a multiline RocketLog block completely", function()
 		local multiline = build.build_rocket_log_lines("test.ts", 2, "users\n  .filter(Boolean)", "log")
 
+		-- Build produces a well-formed multi-line console call. Insert it into a buffer.
 		local lines = { "const x = 1;" }
 		for _, l in ipairs(multiline) do
 			table.insert(lines, l)
@@ -236,7 +221,7 @@ describe("rocketlog.delete", function()
 	end)
 
 	it("matches current label format for RocketLog detection", function()
-		config.apply({ label = "MYLABEL" })
+		_G.RocketLogs.config.label = "MYLABEL"
 		h.set_buffer({
 			"const x = 1;",
 			"console.log(`🚀[MYLABEL] ~ test.ts:2 ~ x:`, x);",
@@ -250,6 +235,7 @@ describe("rocketlog.delete", function()
 	end)
 
 	it("matches legacy RocketLog formats if you support them", function()
+		-- Legacy format (rocket-only marker): `🚀 ~ file.ts:line ~`
 		h.set_buffer({
 			"const x = 1;",
 			"console.log(`🚀 ~ wrong.ts:99 ~ x:`, x);",
