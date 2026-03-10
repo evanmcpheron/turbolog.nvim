@@ -1,5 +1,7 @@
 local M = {}
 
+local DEFAULT_LABEL = "ROCKETLOG"
+
 local EXTENSIONS_BY_FILETYPE = {
 	javascript = { "js", "mjs", "cjs" },
 	javascriptreact = { "jsx" },
@@ -11,7 +13,14 @@ local EXTENSIONS_BY_FILETYPE = {
 	rust = { "rs" },
 }
 
--- Default plugin configuration
+local function trim(text)
+	return (text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+end
+
+local function collapse_whitespace(text)
+	return trim((text or ""):gsub("[%c]+", " "):gsub("%s+", " "))
+end
+
 M.defaults = {
 	keymaps = {
 		motions = "<leader>rl",
@@ -28,7 +37,7 @@ M.defaults = {
 		find = "<leader>rf",
 		dashboard = "<leader>rr",
 	},
-	label = "ROCKETLOG",
+	label = DEFAULT_LABEL,
 	enabled = true,
 	refresh_on_save = true,
 	refresh_on_insert = true,
@@ -57,24 +66,18 @@ M.defaults = {
 	},
 }
 
--- Active runtime config (starts as a deepcopy of defaults)
 M.config = vim.deepcopy(M.defaults)
 
 ---@param label any
 ---@return string
 function M.normalize_label(label)
 	if label == nil then
-		return M.defaults.label
+		return DEFAULT_LABEL
 	end
 
-	local normalized = tostring(label)
-	normalized = normalized:gsub("[%c]+", " ")
-	normalized = normalized:gsub("%s+", " ")
-	normalized = normalized:gsub("^%s+", "")
-	normalized = normalized:gsub("%s+$", "")
-
+	local normalized = collapse_whitespace(tostring(label))
 	if normalized == "" then
-		return M.defaults.label
+		return DEFAULT_LABEL
 	end
 
 	return normalized
@@ -92,20 +95,21 @@ end
 
 ---@return table<string, boolean>
 function M.get_allowed_extensions()
-	local extensions = {}
+	local allowed_extensions = {}
 
 	for filetype, enabled in pairs(M.config.allowed_filetypes or {}) do
 		if enabled and EXTENSIONS_BY_FILETYPE[filetype] then
-			for _, ext in ipairs(EXTENSIONS_BY_FILETYPE[filetype]) do
-				extensions[ext] = true
+			for _, extension in ipairs(EXTENSIONS_BY_FILETYPE[filetype]) do
+				allowed_extensions[extension] = true
 			end
 		end
 	end
 
-	return extensions
+	return allowed_extensions
 end
 
 ---@param opts table|nil
+---@return table
 function M.apply(opts)
 	M.config = vim.tbl_deep_extend("force", vim.deepcopy(M.defaults), opts or {})
 	M.config.label = M.normalize_label(M.config.label)

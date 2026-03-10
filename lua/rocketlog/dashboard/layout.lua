@@ -2,12 +2,33 @@ local config = require("rocketlog.config")
 
 local M = {}
 
-local function clamp_float(value, fallback)
-	if type(value) ~= "number" then
-		return fallback
-	end
+local ROOT_HIGHLIGHT = table.concat({
+	"Normal:NormalFloat",
+	"FloatBorder:RocketLogDashboardBorder",
+	"FloatTitle:RocketLogDashboardTitle",
+}, ",")
 
-	if value > 0 and value <= 1 then
+local READONLY_HIGHLIGHT = table.concat({
+	"Normal:NormalFloat",
+	"FloatBorder:RocketLogDashboardPaneBorder",
+	"FloatTitle:RocketLogDashboardPaneTitle",
+}, ",")
+
+local LIST_HIGHLIGHT = table.concat({
+	"Normal:NormalFloat",
+	"CursorLine:RocketLogDashboardCursorLine",
+	"FloatBorder:RocketLogDashboardPaneBorder",
+	"FloatTitle:RocketLogDashboardPaneTitle",
+}, ",")
+
+local PREVIEW_HIGHLIGHT = table.concat({
+	"Normal:RocketLogDashboardPreview",
+	"FloatBorder:RocketLogDashboardPaneBorder",
+	"FloatTitle:RocketLogDashboardPaneTitle",
+}, ",")
+
+local function clamp_ratio(value, fallback)
+	if type(value) == "number" and value > 0 and value <= 1 then
 		return value
 	end
 
@@ -36,7 +57,7 @@ local function mark_dashboard_window(win, role)
 	pcall(vim.api.nvim_win_set_var, win, "rocketlog_dashboard_role", role or "pane")
 end
 
-local function make_scratch_buf(filetype, role)
+local function create_scratch_buffer(filetype, role)
 	local bufnr = vim.api.nvim_create_buf(false, true)
 	vim.bo[bufnr].buftype = "nofile"
 	vim.bo[bufnr].bufhidden = "wipe"
@@ -47,7 +68,7 @@ local function make_scratch_buf(filetype, role)
 	return bufnr
 end
 
-local function make_float(bufnr, enter, opts, role)
+local function create_float_window(bufnr, enter, opts, role)
 	local win = vim.api.nvim_open_win(bufnr, enter, opts)
 	mark_dashboard_window(win, role)
 	vim.wo[win].number = false
@@ -58,40 +79,39 @@ local function make_float(bufnr, enter, opts, role)
 	return win
 end
 
+local function fill_buffer_with_spaces(bufnr, width, height)
+	local lines = {}
+	for _ = 1, height do
+		table.insert(lines, string.rep(" ", width))
+	end
+	vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+	vim.bo[bufnr].modifiable = false
+end
+
 ---@param state table
 function M.open(state)
 	local dashboard_config = config.config.dashboard or {}
-	local width_ratio = clamp_float(dashboard_config.width, 0.96)
-	local height_ratio = clamp_float(dashboard_config.height, 0.92)
-	local total_width =
-		clamp_dimension(math.floor(vim.o.columns * width_ratio), 100, vim.o.columns - 2)
-	local total_height =
-		clamp_dimension(math.floor(vim.o.lines * height_ratio), 24, vim.o.lines - 2)
+	local total_width = clamp_dimension(math.floor(vim.o.columns * clamp_ratio(dashboard_config.width, 0.96)), 100, vim.o.columns - 2)
+	local total_height = clamp_dimension(math.floor(vim.o.lines * clamp_ratio(dashboard_config.height, 0.92)), 24, vim.o.lines - 2)
 	local row = math.max(0, math.floor((vim.o.lines - total_height) / 2) - 1)
 	local col = math.max(0, math.floor((vim.o.columns - total_width) / 2))
 	local frame_padding = 0
 	local pane_gap = 1
 	local stack_gap = 0
-	local available_outer_width = total_width - (frame_padding * 2)
-	local available_outer_height = total_height - (frame_padding * 2)
+	local outer_width = total_width - (frame_padding * 2)
+	local outer_height = total_height - (frame_padding * 2)
 	local header_outer_height = 5
 	local help_outer_height = 5
-	local main_outer_height = available_outer_height
-		- header_outer_height
-		- help_outer_height
-		- (stack_gap * 2)
+	local main_outer_height = outer_height - header_outer_height - help_outer_height - (stack_gap * 2)
 
 	if main_outer_height < 10 then
 		header_outer_height = 4
 		help_outer_height = 4
-		main_outer_height = available_outer_height
-			- header_outer_height
-			- help_outer_height
-			- (stack_gap * 2)
+		main_outer_height = outer_height - header_outer_height - help_outer_height - (stack_gap * 2)
 	end
 
-	local left_outer_width = math.max(40, math.floor((available_outer_width - pane_gap) * 0.36))
-	local right_outer_width = available_outer_width - left_outer_width - pane_gap
+	local left_outer_width = math.max(40, math.floor((outer_width - pane_gap) * 0.36))
+	local right_outer_width = outer_width - left_outer_width - pane_gap
 
 	state.ui.width = total_width
 	state.ui.height = total_height
@@ -104,14 +124,14 @@ function M.open(state)
 	state.ui.main_height = main_outer_height - 2
 	state.ui.list_height = main_outer_height - 2
 	state.ui.preview_height = main_outer_height - 2
-	state.ui.header_width = available_outer_width - 2
-	state.ui.help_width = available_outer_width - 2
+	state.ui.header_width = outer_width - 2
+	state.ui.help_width = outer_width - 2
 	state.ui.list_width = left_outer_width - 2
 	state.ui.preview_width = right_outer_width - 2
 	state.ui.filter_width = math.min(72, math.max(32, total_width - 20))
 
-	local root_buf = make_scratch_buf("rocketlogdashboard", "root")
-	local root_win = make_float(root_buf, true, {
+	local root_buf = create_scratch_buffer("rocketlogdashboard", "root")
+	local root_win = create_float_window(root_buf, true, {
 		relative = "editor",
 		row = row,
 		col = col,
@@ -123,24 +143,13 @@ function M.open(state)
 		title_pos = "center",
 		zindex = 60,
 	}, "root")
+	vim.wo[root_win].winhighlight = ROOT_HIGHLIGHT
+	fill_buffer_with_spaces(root_buf, total_width, total_height)
 
-	vim.wo[root_win].winhighlight = table.concat({
-		"Normal:NormalFloat",
-		"FloatBorder:RocketLogDashboardBorder",
-		"FloatTitle:RocketLogDashboardTitle",
-	}, ",")
-
-	local root_lines = {}
-	for _ = 1, total_height do
-		table.insert(root_lines, string.rep(" ", total_width))
-	end
-	vim.api.nvim_buf_set_lines(root_buf, 0, -1, false, root_lines)
-	vim.bo[root_buf].modifiable = false
-
-	local header_buf = make_scratch_buf("rocketlogdashboard", "header")
-	local list_buf = make_scratch_buf("rocketlogdashboard", "list")
-	local help_buf = make_scratch_buf("rocketlogdashboard", "help")
-	local preview_buf = make_scratch_buf("rocketlogdashboard", "preview")
+	local header_buf = create_scratch_buffer("rocketlogdashboard", "header")
+	local list_buf = create_scratch_buffer("rocketlogdashboard", "list")
+	local help_buf = create_scratch_buffer("rocketlogdashboard", "help")
+	local preview_buf = create_scratch_buffer("rocketlogdashboard", "preview")
 
 	local header_row = frame_padding
 	local main_row = header_row + header_outer_height + stack_gap
@@ -148,12 +157,12 @@ function M.open(state)
 	local left_col = frame_padding
 	local right_col = frame_padding + left_outer_width + pane_gap
 
-	local header_win = make_float(header_buf, false, {
+	local header_win = create_float_window(header_buf, false, {
 		relative = "win",
 		win = root_win,
 		row = header_row,
 		col = frame_padding,
-		width = available_outer_width - 2,
+		width = outer_width - 2,
 		height = header_outer_height - 2,
 		style = "minimal",
 		focusable = false,
@@ -163,7 +172,7 @@ function M.open(state)
 		zindex = 61,
 	}, "header")
 
-	local list_win = make_float(list_buf, true, {
+	local list_win = create_float_window(list_buf, true, {
 		relative = "win",
 		win = root_win,
 		row = main_row,
@@ -178,7 +187,7 @@ function M.open(state)
 		zindex = 61,
 	}, "list")
 
-	local preview_win = make_float(preview_buf, false, {
+	local preview_win = create_float_window(preview_buf, false, {
 		relative = "win",
 		win = root_win,
 		row = main_row,
@@ -193,12 +202,12 @@ function M.open(state)
 		zindex = 61,
 	}, "preview")
 
-	local help_win = make_float(help_buf, false, {
+	local help_win = create_float_window(help_buf, false, {
 		relative = "win",
 		win = root_win,
 		row = help_row,
 		col = frame_padding,
-		width = available_outer_width - 2,
+		width = outer_width - 2,
 		height = help_outer_height - 2,
 		style = "minimal",
 		focusable = false,
@@ -209,25 +218,10 @@ function M.open(state)
 	}, "help")
 
 	vim.wo[list_win].cursorline = true
-	vim.wo[list_win].winhighlight = table.concat({
-		"Normal:NormalFloat",
-		"CursorLine:RocketLogDashboardCursorLine",
-		"FloatBorder:RocketLogDashboardPaneBorder",
-		"FloatTitle:RocketLogDashboardPaneTitle",
-	}, ",")
-
-	local readonly_highlight = table.concat({
-		"Normal:NormalFloat",
-		"FloatBorder:RocketLogDashboardPaneBorder",
-		"FloatTitle:RocketLogDashboardPaneTitle",
-	}, ",")
-	vim.wo[header_win].winhighlight = readonly_highlight
-	vim.wo[help_win].winhighlight = readonly_highlight
-	vim.wo[preview_win].winhighlight = table.concat({
-		"Normal:RocketLogDashboardPreview",
-		"FloatBorder:RocketLogDashboardPaneBorder",
-		"FloatTitle:RocketLogDashboardPaneTitle",
-	}, ",")
+	vim.wo[list_win].winhighlight = LIST_HIGHLIGHT
+	vim.wo[header_win].winhighlight = READONLY_HIGHLIGHT
+	vim.wo[help_win].winhighlight = READONLY_HIGHLIGHT
+	vim.wo[preview_win].winhighlight = PREVIEW_HIGHLIGHT
 
 	state.ui.root_buf = root_buf
 	state.ui.root_win = root_win

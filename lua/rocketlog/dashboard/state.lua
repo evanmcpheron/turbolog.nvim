@@ -9,13 +9,48 @@ local DASHBOARD_FILETYPES = {
 	rocketlogfilter = true,
 }
 
+local SIDEBAR_FILETYPES = {
+	NvimTree = true,
+	["neo-tree"] = true,
+	nerdtree = true,
+	CHADTree = true,
+	fern = true,
+	dirvish = true,
+	oil = true,
+	Outline = true,
+	undotree = true,
+	aerial = true,
+	Trouble = true,
+	sagaoutline = true,
+	["dap-repl"] = true,
+	dapui_scopes = true,
+	dapui_breakpoints = true,
+	dapui_stacks = true,
+	dapui_watches = true,
+	dapui_console = true,
+}
+
+local UI_WINDOW_KEYS = { "filter_win", "list_win", "preview_win", "header_win", "help_win", "root_win" }
+local UI_BUFFER_KEYS = { "filter_buf", "list_buf", "preview_buf", "header_buf", "help_buf", "root_buf" }
+
+local function get_marked_flag(getter, id)
+	local ok, marked = pcall(getter, id, "rocketlog_dashboard")
+	return ok and marked or false
+end
+
+local function add_unique(items, seen, value, validator)
+	if value and validator(value) and not seen[value] then
+		seen[value] = true
+		table.insert(items, value)
+	end
+end
+
 local function is_dashboard_buffer(bufnr)
 	if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
 		return false
 	end
 
-	local ok_marked, marked = pcall(vim.api.nvim_buf_get_var, bufnr, "rocketlog_dashboard")
-	if ok_marked and marked then
+	if get_marked_flag(vim.api.nvim_buf_get_var, bufnr) then
 		return true
 	end
 
@@ -27,19 +62,17 @@ local function is_dashboard_window(win, root_win)
 		return false
 	end
 
-	local ok_marked, marked = pcall(vim.api.nvim_win_get_var, win, "rocketlog_dashboard")
-	if ok_marked and marked then
+	if get_marked_flag(vim.api.nvim_win_get_var, win) then
 		return true
 	end
 
-	local bufnr = vim.api.nvim_win_get_buf(win)
-	if is_dashboard_buffer(bufnr) then
+	if is_dashboard_buffer(vim.api.nvim_win_get_buf(win)) then
 		return true
 	end
 
-	local ok_config, config = pcall(vim.api.nvim_win_get_config, win)
-	if ok_config and config then
-		if root_win and config.win == root_win then
+	local ok_config, window_config = pcall(vim.api.nvim_win_get_config, win)
+	if ok_config and window_config then
+		if root_win and window_config.win == root_win then
 			return true
 		end
 		if root_win and win == root_win then
@@ -53,13 +86,11 @@ end
 ---@param source_bufnr integer
 ---@return table
 function M.new(source_bufnr)
-	local source_name = vim.api.nvim_buf_get_name(source_bufnr)
 	local dashboard_config = config.config.dashboard or {}
-
 	return {
 		source_bufnr = source_bufnr,
 		source_win = vim.api.nvim_get_current_win(),
-		source_path = source_name,
+		source_path = vim.api.nvim_buf_get_name(source_bufnr),
 		cwd = vim.fn.getcwd(),
 		scope = "project",
 		filter = "",
@@ -87,10 +118,7 @@ end
 ---@return boolean
 function M.is_open()
 	local state = M.current
-	return state ~= nil
-		and state.ui ~= nil
-		and state.ui.root_win ~= nil
-		and vim.api.nvim_win_is_valid(state.ui.root_win)
+	return state ~= nil and state.ui ~= nil and state.ui.root_win ~= nil and vim.api.nvim_win_is_valid(state.ui.root_win)
 end
 
 ---@param state table
@@ -151,15 +179,13 @@ end
 ---@return integer
 function M.find_preferred_cursor_row(state)
 	local selection = state.selection
-	local first_group_row = nil
-	local first_entry_row = nil
+	local first_group_row
+	local first_entry_row
 
 	for row = 1, (state.list_line_count or 0) do
 		local item = state.line_map[row]
 		if item then
-			if not first_group_row then
-				first_group_row = row
-			end
+			first_group_row = first_group_row or row
 			if item.kind == "entry" and not first_entry_row then
 				first_entry_row = row
 			end
@@ -184,7 +210,7 @@ function M.find_preferred_cursor_row(state)
 end
 
 ---@param state table
----@param opts table|nil { normal_mode?: boolean }
+---@param opts table|nil
 function M.focus_list(state, opts)
 	if state and state.ui and state.ui.list_win and vim.api.nvim_win_is_valid(state.ui.list_win) then
 		if opts and opts.normal_mode then
@@ -194,70 +220,31 @@ function M.focus_list(state, opts)
 	end
 end
 
-local SIDEBAR_FILETYPES = {
-	NvimTree = true,
-	["neo-tree"] = true,
-	nerdtree = true,
-	CHADTree = true,
-	fern = true,
-	dirvish = true,
-	oil = true,
-	Outline = true,
-	undotree = true,
-	aerial = true,
-	Trouble = true,
-	sagaoutline = true,
-	["dap-repl"] = true,
-	dapui_scopes = true,
-	dapui_breakpoints = true,
-	dapui_stacks = true,
-	dapui_watches = true,
-	dapui_console = true,
-}
-
----@param win integer
----@return boolean
 local function is_sidebar_window(win)
 	if not vim.api.nvim_win_is_valid(win) then
 		return false
 	end
 
 	local bufnr = vim.api.nvim_win_get_buf(win)
-	local ft = vim.bo[bufnr].filetype or ""
-	if SIDEBAR_FILETYPES[ft] then
+	if SIDEBAR_FILETYPES[vim.bo[bufnr].filetype or ""] then
 		return true
 	end
 
-	local ok, win_config = pcall(vim.api.nvim_win_get_config, win)
-	if ok and win_config and win_config.relative and win_config.relative ~= "" then
-		return true
-	end
-
-	return false
+	local ok_config, window_config = pcall(vim.api.nvim_win_get_config, win)
+	return ok_config and window_config and window_config.relative and window_config.relative ~= "" or false
 end
 
 ---@param state table
 ---@return integer|nil
 function M.get_target_win(state)
-	if
-		state
-		and state.source_win
-		and vim.api.nvim_win_is_valid(state.source_win)
-		and not is_sidebar_window(state.source_win)
-	then
+	if state and state.source_win and vim.api.nvim_win_is_valid(state.source_win) and not is_sidebar_window(state.source_win) then
 		return state.source_win
 	end
 
 	local skip_wins = {}
 	if state and state.ui then
-		for _, win in ipairs({
-			state.ui.root_win,
-			state.ui.filter_win,
-			state.ui.header_win,
-			state.ui.list_win,
-			state.ui.help_win,
-			state.ui.preview_win,
-		}) do
+		for _, key in ipairs(UI_WINDOW_KEYS) do
+			local win = state.ui[key]
 			if win then
 				skip_wins[win] = true
 			end
@@ -283,30 +270,16 @@ local function collect_dashboard_windows(state)
 	local windows = {}
 	local seen = {}
 
-	local function add_window(win)
-		if win and vim.api.nvim_win_is_valid(win) and not seen[win] then
-			seen[win] = true
-			table.insert(windows, win)
-		end
-	end
-
 	if state and state.ui then
-		for _, win in ipairs({
-			state.ui.filter_win,
-			state.ui.list_win,
-			state.ui.preview_win,
-			state.ui.header_win,
-			state.ui.help_win,
-			state.ui.root_win,
-		}) do
-			add_window(win)
+		for _, key in ipairs(UI_WINDOW_KEYS) do
+			add_unique(windows, seen, state.ui[key], vim.api.nvim_win_is_valid)
 		end
 	end
 
 	local root_win = state and state.ui and state.ui.root_win or nil
 	for _, win in ipairs(vim.api.nvim_list_wins()) do
 		if is_dashboard_window(win, root_win) then
-			add_window(win)
+			add_unique(windows, seen, win, vim.api.nvim_win_is_valid)
 		end
 	end
 
@@ -319,29 +292,15 @@ local function collect_dashboard_buffers(state)
 	local buffers = {}
 	local seen = {}
 
-	local function add_buffer(buf)
-		if buf and vim.api.nvim_buf_is_valid(buf) and not seen[buf] then
-			seen[buf] = true
-			table.insert(buffers, buf)
-		end
-	end
-
 	if state and state.ui then
-		for _, buf in ipairs({
-			state.ui.filter_buf,
-			state.ui.list_buf,
-			state.ui.preview_buf,
-			state.ui.header_buf,
-			state.ui.help_buf,
-			state.ui.root_buf,
-		}) do
-			add_buffer(buf)
+		for _, key in ipairs(UI_BUFFER_KEYS) do
+			add_unique(buffers, seen, state.ui[key], vim.api.nvim_buf_is_valid)
 		end
 	end
 
 	for _, buf in ipairs(vim.api.nvim_list_bufs()) do
 		if is_dashboard_buffer(buf) then
-			add_buffer(buf)
+			add_unique(buffers, seen, buf, vim.api.nvim_buf_is_valid)
 		end
 	end
 
@@ -349,7 +308,7 @@ local function collect_dashboard_buffers(state)
 end
 
 ---@param state table|nil
----@param opts table|nil { restore_source?: boolean }
+---@param opts table|nil
 function M.close(state, opts)
 	state = state or M.current
 	if not state or state.closing then
@@ -372,29 +331,22 @@ function M.close(state, opts)
 	for _, win in ipairs(collect_dashboard_windows(state)) do
 		pcall(vim.api.nvim_win_close, win, true)
 	end
-
 	for _, buf in ipairs(collect_dashboard_buffers(state)) do
 		pcall(vim.api.nvim_buf_delete, buf, { force = true })
 	end
-
 	for _, win in ipairs(vim.api.nvim_list_wins()) do
 		if is_dashboard_window(win, nil) then
 			pcall(vim.api.nvim_win_close, win, true)
 		end
 	end
 
-	state.ui.filter_win = nil
-	state.ui.list_win = nil
-	state.ui.preview_win = nil
-	state.ui.header_win = nil
-	state.ui.help_win = nil
-	state.ui.root_win = nil
-	state.ui.filter_buf = nil
-	state.ui.list_buf = nil
-	state.ui.preview_buf = nil
-	state.ui.header_buf = nil
-	state.ui.help_buf = nil
-	state.ui.root_buf = nil
+	for _, key in ipairs(UI_WINDOW_KEYS) do
+		state.ui[key] = nil
+	end
+	for _, key in ipairs(UI_BUFFER_KEYS) do
+		state.ui[key] = nil
+	end
+
 	state.closing = false
 end
 

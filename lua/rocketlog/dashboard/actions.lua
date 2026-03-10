@@ -4,6 +4,9 @@ local state_mod = require("rocketlog.dashboard.state")
 
 local M = {}
 
+local DASHBOARD_RUNTIME_GROUP = "RocketLogDashboardRuntime"
+local FILTER_GROUP = "RocketLogDashboardFilter"
+
 local function defer(fn)
 	vim.schedule(function()
 		pcall(fn)
@@ -55,17 +58,33 @@ local function current_group(state)
 	if not item then
 		return nil
 	end
-	return item.group or item.entry and { entries = { item.entry }, path = item.entry.path } or nil
+
+	if item.group then
+		return item.group
+	end
+
+	if item.entry then
+		return { entries = { item.entry }, path = item.entry.path }
+	end
+
+	return nil
+end
+
+local function mark_filter_target(entity_type, entity, role)
+	pcall(entity_type == "buf" and vim.api.nvim_buf_set_var or vim.api.nvim_win_set_var, entity, "rocketlog_dashboard", true)
+	pcall(entity_type == "buf" and vim.api.nvim_buf_set_var or vim.api.nvim_win_set_var, entity, "rocketlog_dashboard_role", role)
 end
 
 local function close_filter_prompt(state)
 	pcall(vim.cmd, "stopinsert")
+
 	if state.ui.filter_win and vim.api.nvim_win_is_valid(state.ui.filter_win) then
 		pcall(vim.api.nvim_win_close, state.ui.filter_win, true)
 	end
 	if state.ui.filter_buf and vim.api.nvim_buf_is_valid(state.ui.filter_buf) then
 		pcall(vim.api.nvim_buf_delete, state.ui.filter_buf, { force = true })
 	end
+
 	state.ui.filter_win = nil
 	state.ui.filter_buf = nil
 	vim.schedule(function()
@@ -80,39 +99,32 @@ local function update_live_filter(state)
 		return
 	end
 
-	local line = vim.api.nvim_buf_get_lines(state.ui.filter_buf, 0, 1, false)[1] or ""
-	state.filter = line
+	state.filter = vim.api.nvim_buf_get_lines(state.ui.filter_buf, 0, 1, false)[1] or ""
 	if state_mod.is_open() then
 		refresh_dashboard(state)
 	end
 end
 
 local function open_exact_path(path, command)
-	local escaped = vim.fn.fnameescape(path)
-
+	local escaped_path = vim.fn.fnameescape(path)
 	if command == "vsplit" then
-		vim.cmd("vertical edit " .. escaped)
+		vim.cmd("vertical edit " .. escaped_path)
 	else
-		vim.cmd("edit " .. escaped)
+		vim.cmd("edit " .. escaped_path)
 	end
 
 	local current_name = vim.api.nvim_buf_get_name(0)
 	if current_name ~= path then
-		local requested_real = vim.loop.fs_realpath(path)
-		local current_real = vim.loop.fs_realpath(current_name)
-
-		if requested_real and current_real and requested_real == current_real then
-			vim.cmd("keepalt file " .. escaped)
+		local requested_realpath = vim.loop.fs_realpath(path)
+		local current_realpath = vim.loop.fs_realpath(current_name)
+		if requested_realpath and current_realpath and requested_realpath == current_realpath then
+			vim.cmd("keepalt file " .. escaped_path)
 		end
 	end
 end
 
 local function open_entry_in_target(entry, command)
-	local readable_path = entry.path
-		and entry.path ~= ""
-		and entry.path ~= "[No Name]"
-		and vim.fn.filereadable(entry.path) == 1
-
+	local readable_path = entry.path and entry.path ~= "" and entry.path ~= "[No Name]" and vim.fn.filereadable(entry.path) == 1
 	if readable_path then
 		open_exact_path(entry.path, command)
 		return
@@ -125,6 +137,13 @@ local function open_entry_in_target(entry, command)
 			vim.cmd("buffer " .. entry.bufnr)
 		end
 	end
+end
+
+local function set_filter_keymaps(state, filter_buf)
+	local keymap_opts = { buffer = filter_buf, silent = true, nowait = true }
+	vim.keymap.set({ "i", "n" }, "<Esc>", function() close_filter_prompt(state) end, vim.tbl_extend("force", keymap_opts, { desc = "Close live filter" }))
+	vim.keymap.set({ "i", "n" }, "<CR>", function() close_filter_prompt(state) end, vim.tbl_extend("force", keymap_opts, { desc = "Apply live filter" }))
+	vim.keymap.set({ "i", "n" }, "<C-c>", function() close_filter_prompt(state) end, vim.tbl_extend("force", keymap_opts, { desc = "Close live filter" }))
 end
 
 function M.open_selected(state, command)
@@ -141,12 +160,11 @@ function M.open_selected(state, command)
 		if not target_win or not vim.api.nvim_win_is_valid(target_win) then
 			target_win = state_mod.get_target_win(state)
 		end
-
 		if target_win and vim.api.nvim_win_is_valid(target_win) then
 			vim.api.nvim_set_current_win(target_win)
 		end
-		open_entry_in_target(entry, command)
 
+		open_entry_in_target(entry, command)
 		vim.api.nvim_win_set_cursor(0, { entry.lnum, 0 })
 		vim.cmd("normal! zz")
 	end)
@@ -154,11 +172,7 @@ end
 
 function M.delete_selected(state)
 	local entry = state_mod.get_selected_entry(state)
-	if not entry then
-		return
-	end
-
-	if delete_entry_range(entry) then
+	if entry and delete_entry_range(entry) then
 		refresh_dashboard(state)
 		vim.notify("RocketLog: deleted selected log", vim.log.levels.INFO)
 	end
@@ -170,11 +184,7 @@ function M.delete_selected_file(state)
 		return
 	end
 
-	local choice = vim.fn.confirm(
-		"Delete all RocketLogs in " .. group.entries[1].filename .. "?",
-		"&Yes\n&No",
-		2
-	)
+	local choice = vim.fn.confirm("Delete all RocketLogs in " .. group.entries[1].filename .. "?", "&Yes\n&No", 2)
 	if choice ~= 1 then
 		return
 	end
@@ -232,19 +242,15 @@ function M.open_live_filter(state)
 	vim.bo[filter_buf].swapfile = false
 	vim.bo[filter_buf].modifiable = true
 	vim.bo[filter_buf].filetype = "rocketlogfilter"
-	pcall(vim.api.nvim_buf_set_var, filter_buf, "rocketlog_dashboard", true)
-	pcall(vim.api.nvim_buf_set_var, filter_buf, "rocketlog_dashboard_role", "filter")
+	mark_filter_target("buf", filter_buf, "filter")
 	vim.api.nvim_buf_set_lines(filter_buf, 0, -1, false, { state.filter or "" })
 
 	local width = state.ui.filter_width or 48
-	local row = math.max(1, math.floor((state.ui.height - 3) / 2))
-	local col = math.max(1, math.floor((state.ui.width - width) / 2) - 1)
-
 	local filter_win = vim.api.nvim_open_win(filter_buf, true, {
 		relative = "win",
 		win = state.ui.root_win,
-		row = row,
-		col = col,
+		row = math.max(1, math.floor((state.ui.height - 3) / 2)),
+		col = math.max(1, math.floor((state.ui.width - width) / 2) - 1),
 		width = width,
 		height = 1,
 		style = "minimal",
@@ -253,9 +259,7 @@ function M.open_live_filter(state)
 		title_pos = "left",
 		zindex = 70,
 	})
-	pcall(vim.api.nvim_win_set_var, filter_win, "rocketlog_dashboard", true)
-	pcall(vim.api.nvim_win_set_var, filter_win, "rocketlog_dashboard_role", "filter")
-
+	mark_filter_target("win", filter_win, "filter")
 	vim.wo[filter_win].wrap = false
 	vim.wo[filter_win].winhighlight = table.concat({
 		"Normal:NormalFloat",
@@ -266,7 +270,7 @@ function M.open_live_filter(state)
 	state.ui.filter_buf = filter_buf
 	state.ui.filter_win = filter_win
 
-	local augroup = vim.api.nvim_create_augroup("RocketLogDashboardFilter", { clear = false })
+	local augroup = vim.api.nvim_create_augroup(FILTER_GROUP, { clear = false })
 	vim.api.nvim_create_autocmd({ "TextChangedI", "TextChanged" }, {
 		group = augroup,
 		buffer = filter_buf,
@@ -276,7 +280,6 @@ function M.open_live_filter(state)
 			end
 		end,
 	})
-
 	vim.api.nvim_create_autocmd("BufLeave", {
 		group = augroup,
 		buffer = filter_buf,
@@ -287,49 +290,33 @@ function M.open_live_filter(state)
 		end,
 	})
 
-	vim.keymap.set({ "i", "n" }, "<Esc>", function()
-		close_filter_prompt(state)
-	end, { buffer = filter_buf, silent = true, nowait = true, desc = "Close live filter" })
-	vim.keymap.set({ "i", "n" }, "<CR>", function()
-		close_filter_prompt(state)
-	end, { buffer = filter_buf, silent = true, nowait = true, desc = "Apply live filter" })
-	vim.keymap.set({ "i", "n" }, "<C-c>", function()
-		close_filter_prompt(state)
-	end, { buffer = filter_buf, silent = true, nowait = true, desc = "Close live filter" })
-
+	set_filter_keymaps(state, filter_buf)
 	pcall(vim.api.nvim_win_set_cursor, filter_win, { 1, #(state.filter or "") })
 	vim.cmd("startinsert!")
 end
 
 function M.toggle_fold(state)
 	local item = state_mod.get_selected_item(state)
-	if not item or not item.group then
-		return
+	if item and item.group then
+		state.collapsed_paths[item.group.path] = not state.collapsed_paths[item.group.path]
+		refresh_dashboard(state)
 	end
-
-	local path = item.group.path
-	state.collapsed_paths[path] = not state.collapsed_paths[path]
-	refresh_dashboard(state)
 end
 
 function M.open_fold(state)
 	local item = state_mod.get_selected_item(state)
-	if not item or not item.group then
-		return
+	if item and item.group then
+		state.collapsed_paths[item.group.path] = nil
+		refresh_dashboard(state)
 	end
-
-	state.collapsed_paths[item.group.path] = nil
-	refresh_dashboard(state)
 end
 
 function M.close_fold(state)
 	local item = state_mod.get_selected_item(state)
-	if not item or not item.group then
-		return
+	if item and item.group then
+		state.collapsed_paths[item.group.path] = true
+		refresh_dashboard(state)
 	end
-
-	state.collapsed_paths[item.group.path] = true
-	refresh_dashboard(state)
 end
 
 function M.expand_all(state)
@@ -345,29 +332,26 @@ function M.collapse_all(state)
 end
 
 function M.show_help()
-	vim.notify(
-		table.concat({
-			"RocketLog Dashboard",
-			"",
-			"<CR>/o open current window",
-			"v      open in vertical split",
-			"d      delete selected log",
-			"D      delete all logs in selected file",
-			"r      refresh selected file labels",
-			"R      rescan dashboard",
-			"/      open live filter",
-			"c      clear current filter",
-			"<Tab>  toggle selected file fold",
-			"za     toggle selected file fold",
-			"zo     open selected file fold",
-			"zc     close selected file fold",
-			"zR     expand all files",
-			"zM     collapse all files",
-			"t      toggle project/current-file scope",
-			"q      close dashboard",
-		}, "\n"),
-		vim.log.levels.INFO
-	)
+	vim.notify(table.concat({
+		"RocketLog Dashboard",
+		"",
+		"<CR>/o open current window",
+		"v      open in vertical split",
+		"d      delete selected log",
+		"D      delete all logs in selected file",
+		"r      refresh selected file labels",
+		"R      rescan dashboard",
+		"/      open live filter",
+		"c      clear current filter",
+		"<Tab>  toggle selected file fold",
+		"za     toggle selected file fold",
+		"zo     open selected file fold",
+		"zc     close selected file fold",
+		"zR     expand all files",
+		"zM     collapse all files",
+		"t      toggle project/current-file scope",
+		"q      close dashboard",
+	}, "\n"), vim.log.levels.INFO)
 end
 
 function M.attach(state)
@@ -379,82 +363,50 @@ function M.attach(state)
 		state.ui.help_buf,
 		state.ui.preview_buf,
 	}
-	local augroup = vim.api.nvim_create_augroup("RocketLogDashboardRuntime", { clear = false })
+	local augroup = vim.api.nvim_create_augroup(DASHBOARD_RUNTIME_GROUP, { clear = false })
 
 	local function map(buffers, lhs, rhs, desc)
 		for _, bufnr in ipairs(buffers) do
 			if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
-				vim.keymap.set(
-					"n",
-					lhs,
-					rhs,
-					{ buffer = bufnr, nowait = true, silent = true, desc = desc }
-				)
+				vim.keymap.set("n", lhs, rhs, { buffer = bufnr, nowait = true, silent = true, desc = desc })
 			end
 		end
 	end
 
-	map(dashboard_buffers, "q", function()
-		defer(function()
-			state_mod.close(state)
-		end)
-	end, "Close RocketLog dashboard")
-	map(dashboard_buffers, "<Esc>", function()
-		defer(function()
-			state_mod.close(state)
-		end)
-	end, "Close RocketLog dashboard")
-	map({ list_buf }, "<CR>", function()
-		M.open_selected(state, "edit")
-	end, "Open selected RocketLog")
-	map({ list_buf }, "o", function()
-		M.open_selected(state, "edit")
-	end, "Open selected RocketLog")
-	map({ list_buf }, "v", function()
-		M.open_selected(state, "vsplit")
-	end, "Open selected RocketLog in vsplit")
-	map({ list_buf }, "d", function()
-		M.delete_selected(state)
-	end, "Delete selected RocketLog")
-	map({ list_buf }, "D", function()
-		M.delete_selected_file(state)
-	end, "Delete RocketLogs in selected file")
-	map({ list_buf }, "r", function()
-		M.refresh_selected(state)
-	end, "Refresh selected file")
-	map({ list_buf }, "R", function()
-		M.rescan(state)
-	end, "Rescan dashboard")
-	map({ list_buf }, "t", function()
-		M.toggle_scope(state)
-	end, "Toggle dashboard scope")
-	map({ list_buf }, "/", function()
-		M.open_live_filter(state)
-	end, "Open live dashboard filter")
-	map({ list_buf }, "c", function()
-		M.clear_filter(state)
-	end, "Clear dashboard filter")
-	map({ list_buf }, "?", function()
-		M.show_help()
-	end, "Show dashboard help")
-	map({ list_buf }, "<Tab>", function()
-		M.toggle_fold(state)
-	end, "Toggle selected file fold")
-	map({ list_buf }, "za", function()
-		M.toggle_fold(state)
-	end, "Toggle selected file fold")
-	map({ list_buf }, "zo", function()
-		M.open_fold(state)
-	end, "Open selected file fold")
-	map({ list_buf }, "zc", function()
-		M.close_fold(state)
-	end, "Close selected file fold")
-	map({ list_buf }, "zR", function()
-		M.expand_all(state)
-	end, "Expand all dashboard groups")
-	map({ list_buf }, "zM", function()
-		M.collapse_all(state)
-	end, "Collapse all dashboard groups")
+	local function map_close(lhs)
+		map(dashboard_buffers, lhs, function()
+			defer(function()
+				state_mod.close(state)
+			end)
+		end, "Close RocketLog dashboard")
+	end
+
+	map_close("q")
+	map_close("<Esc>")
+
+	local list_mappings = {
+		{ lhs = "<CR>", rhs = function() M.open_selected(state, "edit") end, desc = "Open selected RocketLog" },
+		{ lhs = "o", rhs = function() M.open_selected(state, "edit") end, desc = "Open selected RocketLog" },
+		{ lhs = "v", rhs = function() M.open_selected(state, "vsplit") end, desc = "Open selected RocketLog in vsplit" },
+		{ lhs = "d", rhs = function() M.delete_selected(state) end, desc = "Delete selected RocketLog" },
+		{ lhs = "D", rhs = function() M.delete_selected_file(state) end, desc = "Delete RocketLogs in selected file" },
+		{ lhs = "r", rhs = function() M.refresh_selected(state) end, desc = "Refresh selected file" },
+		{ lhs = "R", rhs = function() M.rescan(state) end, desc = "Rescan dashboard" },
+		{ lhs = "t", rhs = function() M.toggle_scope(state) end, desc = "Toggle dashboard scope" },
+		{ lhs = "/", rhs = function() M.open_live_filter(state) end, desc = "Open live dashboard filter" },
+		{ lhs = "c", rhs = function() M.clear_filter(state) end, desc = "Clear dashboard filter" },
+		{ lhs = "?", rhs = function() M.show_help() end, desc = "Show dashboard help" },
+		{ lhs = "<Tab>", rhs = function() M.toggle_fold(state) end, desc = "Toggle selected file fold" },
+		{ lhs = "za", rhs = function() M.toggle_fold(state) end, desc = "Toggle selected file fold" },
+		{ lhs = "zo", rhs = function() M.open_fold(state) end, desc = "Open selected file fold" },
+		{ lhs = "zc", rhs = function() M.close_fold(state) end, desc = "Close selected file fold" },
+		{ lhs = "zR", rhs = function() M.expand_all(state) end, desc = "Expand all dashboard groups" },
+		{ lhs = "zM", rhs = function() M.collapse_all(state) end, desc = "Collapse all dashboard groups" },
+	}
+
+	for _, mapping in ipairs(list_mappings) do
+		map({ list_buf }, mapping.lhs, mapping.rhs, mapping.desc)
+	end
 
 	vim.api.nvim_create_autocmd("CursorMoved", {
 		group = augroup,
