@@ -1,53 +1,43 @@
 local M = {}
 
----Trim leading/trailing whitespace from a string.
----@param text string
----@return string
+local DEFAULT_LABEL = "ROCKETLOG"
+
+local EXTENSIONS_BY_FILETYPE = {
+	javascript = { "js", "mjs", "cjs" },
+	javascriptreact = { "jsx" },
+	typescript = { "ts", "mts", "cts" },
+	typescriptreact = { "tsx" },
+	lua = { "lua" },
+	python = { "py" },
+	go = { "go" },
+	rust = { "rs" },
+}
+
 local function trim(text)
-	return (text:gsub("^%s+", ""):gsub("%s+$", ""))
+	return (text or ""):gsub("^%s+", ""):gsub("%s+$", "")
 end
 
----Normalize a user-provided RocketLog label into a safe single-line string.
----@param label any
----@return string
-function M.normalize_label(label)
-	if label == nil then
-		return "ROCKETLOG"
-	end
-
-	local normalized = tostring(label)
-	normalized = normalized:gsub("[%c]+", " ")
-	normalized = normalized:gsub("%s+", " ")
-	normalized = trim(normalized)
-
-	if normalized == "" then
-		return "ROCKETLOG"
-	end
-
-	return normalized
+local function collapse_whitespace(text)
+	return trim((text or ""):gsub("[%c]+", " "):gsub("%s+", " "))
 end
 
--- Default plugin configuration
 M.defaults = {
 	keymaps = {
 		motions = "<leader>rl",
 		word = "<leader>rL",
-		visual = "<leader>rl",
 		error_motions = "<leader>re",
 		error_word = "<leader>rE",
-		error_visual = "<leader>re",
 		warn_motions = "<leader>rw",
 		warn_word = "<leader>rW",
-		warn_visual = "<leader>rw",
 		info_motions = "<leader>ri",
 		info_word = "<leader>rI",
-		info_visual = "<leader>ri",
 		delete_below = "<leader>rd",
 		delete_above = "<leader>rD",
 		delete_all_buffer = "<leader>ra",
 		find = "<leader>rf",
+		dashboard = "<leader>rr",
 	},
-	label = "ROCKETLOG",
+	label = DEFAULT_LABEL,
 	enabled = true,
 	refresh_on_save = true,
 	refresh_on_insert = true,
@@ -59,30 +49,70 @@ M.defaults = {
 		typescript = true,
 		typescriptreact = true,
 	},
+	dashboard = {
+		width = 0.96,
+		height = 0.92,
+		preview_context = 4,
+		max_files = 2000,
+		excluded_dirs = {
+			".git",
+			"node_modules",
+			"dist",
+			"build",
+			"coverage",
+			".next",
+			".turbo",
+		},
+	},
 }
 
--- Active runtime config (starts as a deepcopy of defaults)
 M.config = vim.deepcopy(M.defaults)
 
----Get the active RocketLog label with fallback to defaults.
+---@param label any
 ---@return string
-function M.get_label()
-	local active_label = M.config and M.config.label or M.defaults.label
-	return M.normalize_label(active_label)
+function M.normalize_label(label)
+	if label == nil then
+		return DEFAULT_LABEL
+	end
+
+	local normalized = collapse_whitespace(tostring(label))
+	if normalized == "" then
+		return DEFAULT_LABEL
+	end
+
+	return normalized
 end
 
----Get the exact marker prefix used in generated logs.
+---@return string
+function M.get_label()
+	return M.normalize_label(M.config.label)
+end
+
 ---@return string
 function M.get_marker()
 	return "🚀[" .. M.get_label() .. "]"
 end
 
----Merge user config over defaults.
+---@return table<string, boolean>
+function M.get_allowed_extensions()
+	local allowed_extensions = {}
+
+	for filetype, enabled in pairs(M.config.allowed_filetypes or {}) do
+		if enabled and EXTENSIONS_BY_FILETYPE[filetype] then
+			for _, extension in ipairs(EXTENSIONS_BY_FILETYPE[filetype]) do
+				allowed_extensions[extension] = true
+			end
+		end
+	end
+
+	return allowed_extensions
+end
+
 ---@param opts table|nil
+---@return table
 function M.apply(opts)
-	local merged = vim.tbl_deep_extend("force", vim.deepcopy(M.defaults), opts or {})
-	merged.label = M.normalize_label(merged.label)
-	M.config = merged
+	M.config = vim.tbl_deep_extend("force", vim.deepcopy(M.defaults), opts or {})
+	M.config.label = M.normalize_label(M.config.label)
 	return M.config
 end
 

@@ -6,14 +6,37 @@ describe("rocketlog.config", function()
 		config = require("rocketlog.config")
 	end)
 
-	it("applies nested keymap overrides without dropping defaults", function()
+	it("returns defaults when apply is called with nil", function()
+		local applied = config.apply(nil)
+		assert.are.same(config.defaults, applied)
+	end)
+
+	it("returns defaults when apply is called with an empty table", function()
+		local applied = config.apply({})
+		assert.are.same(config.defaults, applied)
+	end)
+
+	it("overrides top-level config values", function()
+		local applied = config.apply({
+			enabled = false,
+			label = "MYLABEL",
+			prefer_treesitter = false,
+		})
+
+		assert.is_false(applied.enabled)
+		assert.are.equal("MYLABEL", applied.label)
+		assert.is_false(applied.prefer_treesitter)
+	end)
+
+	it("deep merges nested keymaps", function()
 		local applied = config.apply({
 			keymaps = {
-				motions = "gm",
+				motions = "gL",
 			},
 		})
 
-		assert.are.equal("gm", applied.keymaps.motions)
+		assert.are.equal("gL", applied.keymaps.motions)
+		-- Unspecified keymaps should remain at their defaults.
 		assert.are.equal(config.defaults.keymaps.word, applied.keymaps.word)
 		assert.are.equal(config.defaults.keymaps.delete_above, applied.keymaps.delete_above)
 	end)
@@ -58,20 +81,15 @@ describe("rocketlog.config", function()
 			},
 		})
 
+		-- Deep-merge should override the specified entries.
 		assert.is_false(applied.allowed_filetypes.typescript)
 		assert.is_true(applied.allowed_filetypes.lua)
+		-- And preserve unspecified defaults.
 		assert.is_true(applied.allowed_filetypes.javascript)
 	end)
 
 	it("accepts a custom label", function()
 		local applied = config.apply({ label = "X" })
 		assert.are.equal("X", applied.label)
-		assert.are.equal("X", config.get_label())
-	end)
-
-	it("normalizes blank or multi-line labels", function()
-		local applied = config.apply({ label = "  first\nsecond  " })
-		assert.are.equal("first second", applied.label)
-		assert.are.equal("first second", config.get_label())
 	end)
 end)

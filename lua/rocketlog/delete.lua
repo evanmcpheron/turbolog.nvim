@@ -1,6 +1,6 @@
-local M = {}
+local comment = require("rocketlog.comment")
 
-local config = require("rocketlog.config")
+local M = {}
 
 ---Statement node types that are safe to delete as a unit.
 ---RocketLog insertions are usually expression statements, but a few variants are allowed.
@@ -10,39 +10,40 @@ local DELETABLE_STATEMENTS = {
 	variable_declaration = true,
 }
 
----@param line_text string|nil
----@return boolean
-local function is_legacy_rocketlog_line(line_text)
-	if not line_text or line_text == "" then
-		return false
-	end
-
-	return line_text:match("^%s*console%.[%a_]+%s*%(`🚀%s*~") ~= nil
-end
-
 ---Check whether a line is a RocketLog created by this plugin.
----Supports the current exact marker and a legacy rocket-only format.
+---Supports the current [ROCKETLOG] marker and a legacy rocket-only format.
 ---@param line_text string|nil
 ---@return boolean
 local function is_rocketlog_line(line_text)
+	local rocketlog_label = RocketLogs.config.label or "ROCKETLOG"
+
 	if not line_text or line_text == "" then
 		return false
 	end
 
-	local exact_marker = config.get_marker() .. " ~"
-	if line_text:find(exact_marker, 1, true) then
+	if comment.is_commented_line(line_text, {
+		bufnr = 0,
+		filetype = vim.bo.filetype,
+		path = vim.api.nvim_buf_get_name(0),
+	}) then
+		return false
+	end
+
+	if line_text:find(rocketlog_label, 1, true) then
 		return true
 	end
 
-	return is_legacy_rocketlog_line(line_text)
+	-- Legacy fallback for older logs before the explicit marker was added.
+	return line_text:match("^%s*console%.[%a_]+%s*%(`🚀%s*~") ~= nil
 end
 
 ---Return a byte column on the line to anchor Tree-sitter node lookup.
 ---@param line_text string
 ---@return integer
 local function marker_col0(line_text)
-	local exact_marker = config.get_marker()
-	local marker_col = line_text:find(exact_marker, 1, true)
+	local rocketlog_label = RocketLogs.config.label or "ROCKETLOG"
+
+	local marker_col = line_text:find(rocketlog_label, 1, true)
 	if marker_col then
 		return marker_col - 1
 	end
@@ -83,6 +84,7 @@ local function delete_line_range(start_line, end_line)
 	local target_line = math.min(start_line, total_after)
 
 	if target_line < 1 then
+		-- Keep at least one empty line in the buffer to avoid invalid cursor placement.
 		vim.api.nvim_buf_set_lines(bufnr, 0, 0, false, { "" })
 		target_line = 1
 	end
@@ -138,6 +140,7 @@ local function delete_with_treesitter(line_nr)
 	local start_line = sr + 1
 	local end_line = er + 1
 
+	-- Tree-sitter end rows can land on the next line with col=0. Normalize to inclusive line range.
 	if ec == 0 and end_line > start_line then
 		end_line = end_line - 1
 	end
@@ -146,6 +149,7 @@ local function delete_with_treesitter(line_nr)
 		end_line = start_line
 	end
 
+	-- Final safety check: only delete statements that actually include a RocketLog marker.
 	local statement_lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
 	local contains_marker = false
 	for _, candidate in ipairs(statement_lines) do
@@ -173,10 +177,12 @@ local function delete_line_only(line_nr)
 		return false, "not_rocketlog"
 	end
 
+	-- One-line RocketLog (most common case).
 	if line_text:find("%)%s*;?%s*$") then
 		return delete_line_range(line_nr, line_nr), nil
 	end
 
+	-- Best-effort multiline fallback for the plugin's generated console call format.
 	local last_line = vim.fn.line("$")
 	local paren_depth = 0
 	local saw_paren = false
@@ -198,6 +204,7 @@ local function delete_line_only(line_nr)
 		end
 	end
 
+	-- Last resort: remove just the marker line rather than doing nothing.
 	return delete_line_range(line_nr, line_nr), "line_only"
 end
 
@@ -245,6 +252,7 @@ local function delete_nearest(direction)
 		return true
 	end
 
+	-- Fallback keeps behavior functional even if Tree-sitter is unavailable.
 	local line_deleted, fallback_err = delete_line_only(target_line)
 	if line_deleted and ts_err and ts_err ~= "not_rocketlog" then
 		local message = "RocketLog: deleted log using fallback"
@@ -270,7 +278,9 @@ function M.clear_buffer_logs()
 		local line_text = vim.fn.getline(line_nr)
 
 		if is_rocketlog_line(line_text) then
+			-- Prefer Tree-sitter so multiline logs are deleted as full statements.
 			local deleted = false
+
 			local ts_deleted = delete_with_treesitter(line_nr)
 			if ts_deleted then
 				deleted = true
@@ -281,8 +291,11 @@ function M.clear_buffer_logs()
 
 			if deleted then
 				deleted_count = deleted_count + 1
+				-- Buffer changed, so refresh the line count.
 				last_line = vim.fn.line("$")
+			-- Do not increment line_nr here. A new line has shifted into this position.
 			else
+				-- Safety: avoid infinite loops if a line matches but cannot be deleted.
 				line_nr = line_nr + 1
 			end
 		else
@@ -290,6 +303,7 @@ function M.clear_buffer_logs()
 		end
 	end
 
+	-- Restore cursor to a sensible location after deletions.
 	local final_last_line = vim.fn.line("$")
 	local target_line = math.min(original_cursor[1], final_last_line)
 	if target_line < 1 then

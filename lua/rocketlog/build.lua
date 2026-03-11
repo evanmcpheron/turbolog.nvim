@@ -1,7 +1,5 @@
 local M = {}
 
-local config = require("rocketlog.config")
-
 local function escape_template_text(text)
 	local escaped = text:gsub("\\", "\\\\")
 	escaped = escaped:gsub("`", "\\`")
@@ -47,7 +45,7 @@ local function dedent_lines_smart(lines)
 		return normalized
 	end
 
-	-- Step 1: remove common outer indentation from all non-empty lines.
+	-- Step 1: remove common outer indentation from all non-empty lines
 	local common_min = nil
 	for _, line in ipairs(normalized) do
 		if line:match("%S") then
@@ -67,7 +65,7 @@ local function dedent_lines_smart(lines)
 		end
 	end
 
-	-- Step 2: wrapped block normalization (canonicalize to { ... } with 2-space inner indent).
+	-- Step 2: wrapped block normalization (canonicalize to { ... } with 2-space inner indent)
 	local first_text = (base[1] or ""):gsub("^%s*", "")
 	local last_text = (base[#base] or ""):gsub("^%s*", "")
 
@@ -82,6 +80,7 @@ local function dedent_lines_smart(lines)
 	local out = {}
 	table.insert(out, first_text)
 
+	-- Find the minimum indent across middle non-empty lines
 	local middle_min = nil
 	for i = 2, #base - 1 do
 		local line = base[i]
@@ -93,6 +92,7 @@ local function dedent_lines_smart(lines)
 		end
 	end
 
+	-- Rebase middle lines so the shallowest middle line is exactly 2 spaces
 	for i = 2, #base - 1 do
 		local line = base[i] or ""
 		if not line:match("%S") then
@@ -124,7 +124,7 @@ end
 function M.build_rocket_log_lines(file, line_num, expr, log_type)
 	local method = log_type or "log"
 	local expression_lines = vim.split(expr, "\n", { plain = true })
-	local rocketlog_label = escape_template_text(config.get_label())
+	local rocketlog_label = RocketLogs.config.label or "ROCKETLOG"
 
 	if #expression_lines == 1 then
 		local label_text = escape_template_text(normalize_label_text_single_line(expr))
@@ -142,16 +142,19 @@ function M.build_rocket_log_lines(file, line_num, expr, log_type)
 	end
 
 	local normalized_lines = dedent_lines_smart(expression_lines)
+
 	local output_lines = {
 		string.format("console.%s(`🚀[%s] ~ %s:%d ~", method, rocketlog_label, file, line_num),
 	}
 
+	-- Template string body (preserve normalized formatting)
 	for _, expression_line in ipairs(normalized_lines) do
 		table.insert(output_lines, escape_template_text(expression_line))
 	end
 
 	output_lines[#output_lines] = output_lines[#output_lines] .. "`,"
 
+	-- Logged value block (always indent consistently)
 	for _, expression_line in ipairs(normalized_lines) do
 		table.insert(output_lines, "  " .. expression_line)
 	end
