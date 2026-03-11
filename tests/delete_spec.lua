@@ -247,4 +247,21 @@ describe("rocketlog.delete", function()
 		assert.is_true(ok)
 		assert.are.same({ "const x = 1;", "const y = 2;" }, h.get_lines())
 	end)
+
+	it("does not treat commented RocketLogs as active logs", function()
+		h.set_buffer({
+			"// console.log(`🚀[ROCKETLOG] ~ test.ts:1 ~ disabled:`, disabled);",
+			"const after = true;",
+		}, { filetype = "typescript" })
+
+		h.set_cursor(1, 0)
+		local ok = delete.delete_next_log()
+
+		assert.is_false(ok)
+		assert.are.same({
+			"// console.log(`🚀[ROCKETLOG] ~ test.ts:1 ~ disabled:`, disabled);",
+			"const after = true;",
+		}, h.get_lines())
+	end)
+
 end)

@@ -1,3 +1,5 @@
+local comment = require("rocketlog.comment")
+
 local M = {}
 
 local function escape_lua_pattern(text)
@@ -21,17 +23,23 @@ function M.refresh_buffer()
 	local fallback_pattern = "(`🚀%s*~%s*)[^:]+:%d+(%s*~%s*)"
 
 	for i, line in ipairs(lines) do
-		local updated_line, replacements =
-			line:gsub(pattern_with_label, "%1" .. filename .. ":" .. i .. "%2", 1)
+		if not comment.is_commented_line(line, {
+			bufnr = bufnr,
+			filetype = vim.bo[bufnr].filetype,
+			path = vim.api.nvim_buf_get_name(bufnr),
+		}) then
+			local updated_line, replacements =
+				line:gsub(pattern_with_label, "%1" .. filename .. ":" .. i .. "%2", 1)
 
-		if replacements == 0 then
-			updated_line, replacements =
-				line:gsub(fallback_pattern, "%1" .. filename .. ":" .. i .. "%2", 1)
-		end
+			if replacements == 0 then
+				updated_line, replacements =
+					line:gsub(fallback_pattern, "%1" .. filename .. ":" .. i .. "%2", 1)
+			end
 
-		if replacements > 0 and updated_line ~= line then
-			lines[i] = updated_line
-			changed = changed + 1
+			if replacements > 0 and updated_line ~= line then
+				lines[i] = updated_line
+				changed = changed + 1
+			end
 		end
 	end
 

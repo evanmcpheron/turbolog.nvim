@@ -1,3 +1,4 @@
+local comment = require("rocketlog.comment")
 local config = require("rocketlog.config")
 
 local M = {}
@@ -73,7 +74,7 @@ local function parse_embedded_location(line)
 end
 
 local function is_single_line_console_call(line)
-	return line:match("^%s*console%.[%a_][%w_]*%s*%b()%s*;?%s*$") ~= nil
+	return line:match("console%.[%a_][%w_]*%s*%b()%s*;?%s*$") ~= nil
 end
 
 local function count_char(text, needle)
@@ -167,11 +168,18 @@ function M.parse_lines(lines, source)
 	local marker = config.get_marker()
 	local source_path = source.path or "[No Name]"
 	local source_filename = path_basename(source_path)
+	local source_filetype = source.filetype or detect_filetype_from_path(source_path)
 	local line_number = 1
 
 	while line_number <= #lines do
 		local line = lines[line_number]
-		if line and line:find(marker, 1, true) then
+		local is_marker_line = line and line:find(marker, 1, true)
+		if is_marker_line then
+			local is_commented = comment.is_commented_line(line, {
+				bufnr = source.bufnr,
+				filetype = source_filetype,
+				path = source_path,
+			})
 			local block_lines, end_line_number = collect_log_block(lines, line_number)
 			local embedded_filename, embedded_line = parse_embedded_location(line)
 			local label = parse_label(line, block_lines)
@@ -183,14 +191,15 @@ function M.parse_lines(lines, source)
 				filename = source_filename,
 				lnum = line_number,
 				end_lnum = end_line_number,
-				log_type = line:match("^%s*console%.([%a_][%w_]*)%s*%(") or "log",
+				log_type = line:match("console%.([%a_][%w_]*)%s*%(") or "log",
 				label = label,
 				summary = label,
 				text = table.concat(block_lines, "\n"),
 				marker = marker,
 				stale = is_stale,
+				commented = is_commented,
 				bufnr = source.bufnr,
-				filetype = detect_filetype_from_path(source_path),
+				filetype = source_filetype,
 			})
 
 			line_number = end_line_number + 1
@@ -216,6 +225,7 @@ local function scan_loaded_buffers()
 				results[normalized_path] = M.parse_lines(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), {
 					path = normalized_path,
 					bufnr = bufnr,
+					filetype = filetype,
 				})
 				seen_paths[normalized_path] = true
 			end
@@ -306,6 +316,7 @@ local function collect_entries_for_scope(state)
 			return M.parse_lines(vim.api.nvim_buf_get_lines(state.source_bufnr, 0, -1, false), {
 				path = normalize_path(vim.api.nvim_buf_get_name(state.source_bufnr)),
 				bufnr = state.source_bufnr,
+				filetype = vim.bo[state.source_bufnr].filetype,
 			})
 		end
 		if state.source_path and path_is_readable(state.source_path) then

@@ -119,4 +119,17 @@ describe("rocketlog.refresh", function()
 		local lines = h.get_lines()
 		assert.are.equal("console.log(`🚀[MYLABEL] ~ test-file.ts:1 ~ x:`, x);", lines[1])
 	end)
+
+	it("does not refresh commented RocketLogs", function()
+		h.set_buffer({
+			"// console.log(`🚀[ROCKETLOG] ~ wrong.ts:999 ~ x:`, x);",
+		}, { filetype = "typescript", name = "/tmp/test-file.ts" })
+
+		local changed = refresh.refresh_buffer()
+		assert.are.equal(0, changed)
+		assert.are.same({
+			"// console.log(`🚀[ROCKETLOG] ~ wrong.ts:999 ~ x:`, x);",
+		}, h.get_lines())
+	end)
+
 end)

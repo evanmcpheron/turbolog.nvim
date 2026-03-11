@@ -151,6 +151,34 @@ function M.get_selected_entry(state)
 	return nil
 end
 
+local function entry_matches_selection(entry, selection)
+	if not entry or not selection then
+		return false
+	end
+
+	if selection.id and entry.id == selection.id then
+		return true
+	end
+
+	if not selection.path or entry.path ~= selection.path then
+		return false
+	end
+
+	if selection.lnum and entry.lnum ~= selection.lnum then
+		return false
+	end
+
+	if selection.end_lnum and entry.end_lnum ~= selection.end_lnum then
+		return false
+	end
+
+	if selection.label and entry.label ~= selection.label then
+		return false
+	end
+
+	return selection.lnum ~= nil or selection.end_lnum ~= nil or selection.label ~= nil
+end
+
 ---@param state table
 function M.capture_selection(state)
 	local item = M.get_selected_item(state)
@@ -163,6 +191,9 @@ function M.capture_selection(state)
 			kind = "entry",
 			id = item.entry.id,
 			path = item.entry.path,
+			lnum = item.entry.lnum,
+			end_lnum = item.entry.end_lnum,
+			label = item.entry.label,
 		}
 		return
 	end
@@ -181,6 +212,7 @@ function M.find_preferred_cursor_row(state)
 	local selection = state.selection
 	local first_group_row
 	local first_entry_row
+	local matching_group_row
 
 	for row = 1, (state.list_line_count or 0) do
 		local item = state.line_map[row]
@@ -196,13 +228,17 @@ function M.find_preferred_cursor_row(state)
 		for row = 1, (state.list_line_count or 0) do
 			local item = state.line_map[row]
 			if item then
-				if selection.kind == "entry" and item.kind == "entry" and item.entry.id == selection.id then
+				if selection.kind == "entry" and item.kind == "entry" and entry_matches_selection(item.entry, selection) then
 					return row
 				end
-				if selection.path and item.group and item.group.path == selection.path then
-					return row
+				if not matching_group_row and selection.path and item.group and item.group.path == selection.path then
+					matching_group_row = row
 				end
 			end
+		end
+
+		if matching_group_row then
+			return matching_group_row
 		end
 	end
 

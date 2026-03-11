@@ -101,7 +101,6 @@ describe("rocketlog.dashboard.actions", function()
 		vim.fn.delete(target_path)
 	end)
 
-
 	it("closes the dashboard and clears current state", function()
 		local source_bufnr = h.set_buffer({ "const source = true;" }, { filetype = "typescript", name = "source.ts" })
 		local state = state_mod.new(source_bufnr)
@@ -157,7 +156,9 @@ describe("rocketlog.dashboard.actions", function()
 		vim.api.nvim_win_set_cursor(state.ui.list_win, { 1, 0 })
 
 		local restore_render = h.stub(render, "refresh", function() end)
-		local restore_scan = h.stub(scan, "collect_groups", function() return state.groups end)
+		local restore_scan = h.stub(scan, "collect_groups", function()
+			return state.groups
+		end)
 
 		actions.toggle_fold(state)
 		assert.is_true(state.collapsed_paths["/tmp/a.ts"])
@@ -174,5 +175,110 @@ describe("rocketlog.dashboard.actions", function()
 
 		restore_render()
 		restore_scan()
+	end)
+
+	it("toggles the selected log into a commented dashboard entry", function()
+		local source_bufnr = h.set_buffer({
+			"const before = true;",
+			"console.log(`🚀[ROCKETLOG] ~ test.ts:2 ~ before:`, before);",
+			"const after = true;",
+		}, { filetype = "typescript", name = "/tmp/test.ts" })
+		local state = state_mod.new(source_bufnr)
+		state_mod.set_current(state)
+		layout.open(state)
+		scan.collect_groups(state)
+		render.refresh(state)
+		vim.api.nvim_win_set_cursor(state.ui.list_win, { 2, 0 })
+
+		actions.comment_selected(state)
+
+		assert.are.same({
+			"const before = true;",
+			"// console.log(`🚀[ROCKETLOG] ~ test.ts:2 ~ before:`, before);",
+			"const after = true;",
+		}, h.get_lines())
+		assert.are.equal(1, #(state.groups or {}))
+		assert.are.equal(1, #state.groups[1].entries)
+		assert.is_true(state.groups[1].entries[1].commented)
+		assert.are.same({ 2, 0 }, vim.api.nvim_win_get_cursor(state.ui.list_win))
+	end)
+
+	it("toggles all logs in the selected file from an entry row", function()
+		local source_bufnr = h.set_buffer({
+			"console.log(`🚀[ROCKETLOG] ~ test.ts:1 ~ first:`, first);",
+			"const middle = true;",
+			"console.log(`🚀[ROCKETLOG] ~ test.ts:3 ~ second:`, second);",
+		}, { filetype = "typescript", name = "/tmp/test.ts" })
+		local state = state_mod.new(source_bufnr)
+		state_mod.set_current(state)
+		layout.open(state)
+		scan.collect_groups(state)
+		render.refresh(state)
+		vim.api.nvim_win_set_cursor(state.ui.list_win, { 2, 0 })
+
+		local restore_confirm = h.stub(vim.fn, "confirm", function()
+			return 1
+		end)
+
+		actions.comment_selected_file(state)
+		restore_confirm()
+
+		assert.are.same({
+			"// console.log(`🚀[ROCKETLOG] ~ test.ts:1 ~ first:`, first);",
+			"const middle = true;",
+			"// console.log(`🚀[ROCKETLOG] ~ test.ts:3 ~ second:`, second);",
+		}, h.get_lines())
+		assert.are.equal(1, #(state.groups or {}))
+		assert.are.equal(2, #state.groups[1].entries)
+		assert.is_true(state.groups[1].entries[1].commented)
+		assert.is_true(state.groups[1].entries[2].commented)
+		assert.are.same({ 2, 0 }, vim.api.nvim_win_get_cursor(state.ui.list_win))
+	end)
+
+	it("uncomments a previously commented selected log", function()
+		local source_bufnr = h.set_buffer({
+			"const before = true;",
+			"// console.log(`🚀[ROCKETLOG] ~ test.ts:2 ~ before:`, before);",
+			"const after = true;",
+		}, { filetype = "typescript", name = "/tmp/test.ts" })
+		local state = state_mod.new(source_bufnr)
+		state_mod.set_current(state)
+		layout.open(state)
+		scan.collect_groups(state)
+		render.refresh(state)
+		vim.api.nvim_win_set_cursor(state.ui.list_win, { 2, 0 })
+
+		actions.comment_selected(state)
+
+		assert.are.same({
+			"const before = true;",
+			"console.log(`🚀[ROCKETLOG] ~ test.ts:2 ~ before:`, before);",
+			"const after = true;",
+		}, h.get_lines())
+		assert.are.equal(1, #(state.groups or {}))
+		assert.is_false(state.groups[1].entries[1].commented)
+		assert.are.same({ 2, 0 }, vim.api.nvim_win_get_cursor(state.ui.list_win))
+	end)
+
+	it("keeps the cursor on the same entry when toggling repeatedly", function()
+		local source_bufnr = h.set_buffer({
+			"const before = true;",
+			"console.log(`🚀[ROCKETLOG] ~ test.ts:2 ~ before:`, before);",
+			"const after = true;",
+		}, { filetype = "typescript", name = "/tmp/test.ts" })
+		local state = state_mod.new(source_bufnr)
+		state_mod.set_current(state)
+		layout.open(state)
+		scan.collect_groups(state)
+		render.refresh(state)
+		vim.api.nvim_win_set_cursor(state.ui.list_win, { 2, 0 })
+
+		actions.comment_selected(state)
+		assert.are.same({ 2, 0 }, vim.api.nvim_win_get_cursor(state.ui.list_win))
+		assert.is_true(state.groups[1].entries[1].commented)
+
+		actions.comment_selected(state)
+		assert.are.same({ 2, 0 }, vim.api.nvim_win_get_cursor(state.ui.list_win))
+		assert.is_false(state.groups[1].entries[1].commented)
 	end)
 end)

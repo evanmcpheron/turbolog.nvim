@@ -1,3 +1,4 @@
+local comment = require("rocketlog.comment")
 local render = require("rocketlog.dashboard.render")
 local scan = require("rocketlog.dashboard.scan")
 local state_mod = require("rocketlog.dashboard.state")
@@ -13,12 +14,48 @@ local function defer(fn)
 	end)
 end
 
-local function refresh_dashboard(state)
-	state_mod.capture_selection(state)
+local function snapshot_selection(state)
+	local item = state_mod.get_selected_item(state)
+	if not item then
+		return nil
+	end
+
+	if item.kind == "entry" and item.entry then
+		return {
+			kind = "entry",
+			id = item.entry.id,
+			path = item.entry.path,
+			lnum = item.entry.lnum,
+			end_lnum = item.entry.end_lnum,
+			label = item.entry.label,
+		}
+	end
+
+	if item.kind == "group" and item.group then
+		return {
+			kind = "group",
+			path = item.group.path,
+		}
+	end
+
+	return nil
+end
+
+local function refresh_dashboard(state, opts)
+	local selection = opts and opts.selection or snapshot_selection(state)
+	if selection then
+		state.selection = selection
+	else
+		state_mod.capture_selection(state)
+	end
+
 	scan.collect_groups(state)
 	render.refresh(state)
 end
 
+
+---@param entry_or_group table|nil
+---@return integer|nil
 local function with_target_buffer(entry_or_group)
 	local entry = entry_or_group
 	if entry_or_group and entry_or_group.entries then
@@ -26,33 +63,60 @@ local function with_target_buffer(entry_or_group)
 	end
 
 	if not entry then
-		return nil, nil
+		return nil
 	end
 
 	if entry.bufnr and vim.api.nvim_buf_is_valid(entry.bufnr) then
-		return entry.bufnr, false
+		return entry.bufnr
 	end
 
 	if not entry.path or entry.path == "[No Name]" or vim.fn.filereadable(entry.path) ~= 1 then
-		return nil, nil
+		return nil
 	end
 
 	local bufnr = vim.fn.bufadd(entry.path)
 	vim.fn.bufload(bufnr)
-	return bufnr, true
+	return bufnr
 end
 
+---@param entry table
+---@return boolean
 local function delete_entry_range(entry)
-	local bufnr = with_target_buffer(entry)
-	if not bufnr then
+	local target_bufnr = with_target_buffer(entry)
+	if not target_bufnr then
 		vim.notify("RocketLog: unable to delete log from an unreadable buffer", vim.log.levels.WARN)
 		return false
 	end
 
-	vim.api.nvim_buf_set_lines(bufnr, entry.lnum - 1, entry.end_lnum, false, {})
+	vim.api.nvim_buf_set_lines(target_bufnr, entry.lnum - 1, entry.end_lnum, false, {})
 	return true
 end
 
+---@param entry table
+---@return boolean, string
+local function toggle_entry_comment_state(entry)
+	local target_bufnr = with_target_buffer(entry)
+	if not target_bufnr then
+		vim.notify("RocketLog: unable to toggle log comment state from an unreadable buffer", vim.log.levels.WARN)
+		return false, entry.commented and "uncommented" or "commented"
+	end
+
+	local toggled, comment_error = comment.toggle_range(target_bufnr, entry.lnum, entry.end_lnum, {
+		bufnr = target_bufnr,
+		filetype = entry.filetype,
+		path = entry.path,
+	})
+
+	if comment_error == "unsupported_comment_prefix" then
+		vim.notify("RocketLog: unable to resolve a comment prefix for the selected file", vim.log.levels.WARN)
+		return false, entry.commented and "uncommented" or "commented"
+	end
+
+	return toggled, entry.commented and "uncommented" or "commented"
+end
+
+---@param state table
+---@return table|nil
 local function current_group(state)
 	local item = state_mod.get_selected_item(state)
 	if not item then
@@ -170,6 +234,69 @@ function M.open_selected(state, command)
 	end)
 end
 
+function M.comment_selected(state)
+	local entry = state_mod.get_selected_entry(state)
+	if not entry then
+		return
+	end
+
+	local selection = {
+		kind = "entry",
+		id = entry.id,
+		path = entry.path,
+		lnum = entry.lnum,
+		end_lnum = entry.end_lnum,
+		label = entry.label,
+	}
+	local toggled, action = toggle_entry_comment_state(entry)
+	if toggled then
+		refresh_dashboard(state, { selection = selection })
+		vim.notify("RocketLog: " .. action .. " selected log", vim.log.levels.INFO)
+	end
+end
+
+function M.comment_selected_file(state)
+	local selection = snapshot_selection(state)
+	local group = current_group(state)
+	if not group or not group.entries or #group.entries == 0 then
+		return
+	end
+
+	local choice = vim.fn.confirm("Toggle all RocketLogs in " .. group.entries[1].filename .. "?", "&Yes\n&No", 2)
+	if choice ~= 1 then
+		return
+	end
+
+	local toggled_count = 0
+	local commented_count = 0
+	local uncommented_count = 0
+	for _, entry in ipairs(group.entries) do
+		local toggled, action = toggle_entry_comment_state(entry)
+		if toggled then
+			toggled_count = toggled_count + 1
+			if action == "commented" then
+				commented_count = commented_count + 1
+			else
+				uncommented_count = uncommented_count + 1
+			end
+		end
+	end
+
+	refresh_dashboard(state, { selection = selection })
+	if toggled_count > 0 then
+		vim.notify(
+			string.format(
+				"RocketLog: toggled %d log(s) in selected file (%d commented, %d uncommented)",
+				toggled_count,
+				commented_count,
+				uncommented_count
+			),
+			vim.log.levels.INFO
+		)
+	end
+end
+
+
 function M.delete_selected(state)
 	local entry = state_mod.get_selected_entry(state)
 	if entry and delete_entry_range(entry) then
@@ -199,14 +326,14 @@ end
 
 function M.refresh_selected(state)
 	local group = current_group(state)
-	local bufnr = with_target_buffer(group)
-	if not bufnr then
+	local target_bufnr = with_target_buffer(group)
+	if not target_bufnr then
 		vim.notify("RocketLog: no readable buffer selected", vim.log.levels.WARN)
 		return
 	end
 
 	local refresh = require("rocketlog.refresh")
-	vim.api.nvim_buf_call(bufnr, function()
+	vim.api.nvim_buf_call(target_bufnr, function()
 		refresh.refresh_buffer()
 	end)
 
@@ -337,12 +464,14 @@ function M.show_help()
 		"",
 		"<CR>/o open current window",
 		"v      open in vertical split",
+		"c      toggle selected log comment state",
+		"C      toggle all logs in selected file",
 		"d      delete selected log",
 		"D      delete all logs in selected file",
 		"r      refresh selected file labels",
 		"R      rescan dashboard",
 		"/      open live filter",
-		"c      clear current filter",
+		"x      clear current filter",
 		"<Tab>  toggle selected file fold",
 		"za     toggle selected file fold",
 		"zo     open selected file fold",
@@ -388,13 +517,15 @@ function M.attach(state)
 		{ lhs = "<CR>", rhs = function() M.open_selected(state, "edit") end, desc = "Open selected RocketLog" },
 		{ lhs = "o", rhs = function() M.open_selected(state, "edit") end, desc = "Open selected RocketLog" },
 		{ lhs = "v", rhs = function() M.open_selected(state, "vsplit") end, desc = "Open selected RocketLog in vsplit" },
+		{ lhs = "c", rhs = function() M.comment_selected(state) end, desc = "Toggle selected RocketLog comment state" },
+		{ lhs = "C", rhs = function() M.comment_selected_file(state) end, desc = "Toggle RocketLog comments in selected file" },
 		{ lhs = "d", rhs = function() M.delete_selected(state) end, desc = "Delete selected RocketLog" },
 		{ lhs = "D", rhs = function() M.delete_selected_file(state) end, desc = "Delete RocketLogs in selected file" },
 		{ lhs = "r", rhs = function() M.refresh_selected(state) end, desc = "Refresh selected file" },
 		{ lhs = "R", rhs = function() M.rescan(state) end, desc = "Rescan dashboard" },
 		{ lhs = "t", rhs = function() M.toggle_scope(state) end, desc = "Toggle dashboard scope" },
 		{ lhs = "/", rhs = function() M.open_live_filter(state) end, desc = "Open live dashboard filter" },
-		{ lhs = "c", rhs = function() M.clear_filter(state) end, desc = "Clear dashboard filter" },
+		{ lhs = "x", rhs = function() M.clear_filter(state) end, desc = "Clear dashboard filter" },
 		{ lhs = "?", rhs = function() M.show_help() end, desc = "Show dashboard help" },
 		{ lhs = "<Tab>", rhs = function() M.toggle_fold(state) end, desc = "Toggle selected file fold" },
 		{ lhs = "za", rhs = function() M.toggle_fold(state) end, desc = "Toggle selected file fold" },

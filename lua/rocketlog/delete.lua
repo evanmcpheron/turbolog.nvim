@@ -1,3 +1,5 @@
+local comment = require("rocketlog.comment")
+
 local M = {}
 
 ---Statement node types that are safe to delete as a unit.
@@ -16,6 +18,14 @@ local function is_rocketlog_line(line_text)
 	local rocketlog_label = RocketLogs.config.label or "ROCKETLOG"
 
 	if not line_text or line_text == "" then
+		return false
+	end
+
+	if comment.is_commented_line(line_text, {
+		bufnr = 0,
+		filetype = vim.bo.filetype,
+		path = vim.api.nvim_buf_get_name(0),
+	}) then
 		return false
 	end
 

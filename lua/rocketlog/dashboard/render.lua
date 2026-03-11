@@ -7,7 +7,7 @@ local list_ns = vim.api.nvim_create_namespace("rocketlog_dashboard_list")
 local preview_ns = vim.api.nvim_create_namespace("rocketlog_dashboard_preview")
 
 local HEADER_LABELS = { "CWD", "Source", "Scope", "Filter", "Files", "Logs", "Folded", "Selected" }
-local HELP_KEYS = { "[<CR>/o]", "[v]", "[/]", "[c]", "[t]", "[<Tab>/za/zo/zc]", "[zR]", "[zM]", "[d/D]", "[r/R]", "[?]", "[q/Esc]" }
+local HELP_KEYS = { "[<CR>/o]", "[v]", "[c/C]", "[/]", "[x]", "[t]", "[<Tab>/za/zo/zc]", "[zR]", "[zM]", "[d/D]", "[r/R]", "[?]", "[q/Esc]" }
 
 local function pad(text, width)
 	text = text or ""
@@ -132,8 +132,8 @@ function M.render_shell(state)
 	end
 
 	local help_lines = {
-		pad("Open [<CR>/o]   Split [v]   Filter [/]   Clear [c]   Scope [t]   Fold [<Tab>/za/zo/zc]   Expand [zR]   Collapse [zM]", state.ui.help_width),
-		pad("Delete [d/D]   Refresh [r/R]   Help [?]   Close [q/Esc]", state.ui.help_width),
+		pad("Open [<CR>/o]   Split [v]   Toggle [c/C]   Filter [/]   Clear [x]   Scope [t]   Fold [<Tab>/za/zo/zc]", state.ui.help_width),
+		pad("Expand [zR]   Collapse [zM]   Delete [d/D]   Refresh [r/R]   Help [?]   Close [q/Esc]", state.ui.help_width),
 		pad("Selected " .. selected_entry_summary(state), state.ui.help_width),
 	}
 
@@ -162,7 +162,7 @@ function M.render_list(state)
 		lines = {
 			"No RocketLogs found.",
 			"",
-			"Try switching scope with t or clear the filter with c.",
+			"Try switching scope with t or clear the filter with x.",
 		}
 	else
 		for _, group in ipairs(groups) do
@@ -176,9 +176,10 @@ function M.render_list(state)
 				for _, entry in ipairs(group.entries) do
 					local line_range = entry.end_lnum > entry.lnum and string.format("%d-%d", entry.lnum, entry.end_lnum) or tostring(entry.lnum)
 					local row = string.format(
-						"  %6s  %-5s %s%s",
+						"  %6s  %-5s %s%s%s",
 						line_range,
 						(entry.log_type or "log"):upper(),
+						entry.commented and "[off] " or "",
 						entry.stale and "* " or "",
 						entry.summary or entry.label
 					)
@@ -204,10 +205,14 @@ function M.render_list(state)
 			vim.api.nvim_buf_add_highlight(state.ui.list_buf, list_ns, "RocketLogDashboardFoldIcon", line_number0, 0, 3)
 			vim.api.nvim_buf_add_highlight(state.ui.list_buf, list_ns, "RocketLogDashboardGroup", line_number0, 2, -1)
 		else
+			local line_text = lines[line_number]
 			vim.api.nvim_buf_add_highlight(state.ui.list_buf, list_ns, "RocketLogDashboardLineNr", line_number0, 2, 8)
 			vim.api.nvim_buf_add_highlight(state.ui.list_buf, list_ns, log_type_highlight(item.entry.log_type), line_number0, 10, 15)
+			if item.entry.commented then
+				highlight_occurrences(state.ui.list_buf, list_ns, line_number0, line_text, "[off]", "RocketLogDashboardDisabled")
+			end
 			if item.entry.stale then
-				vim.api.nvim_buf_add_highlight(state.ui.list_buf, list_ns, "RocketLogDashboardStale", line_number0, 16, 18)
+				highlight_occurrences(state.ui.list_buf, list_ns, line_number0, line_text, "*", "RocketLogDashboardStale")
 			end
 		end
 	end
@@ -240,10 +245,11 @@ function M.render_preview(state)
 		lines = {
 			"File: " .. relative_path(entry.path, state.cwd),
 			string.format(
-				"Range: %d%s   Type: %s   Stale: %s",
+				"Range: %d%s   Type: %s   Commented: %s   Stale: %s",
 				entry.lnum,
 				entry.end_lnum > entry.lnum and ("-" .. entry.end_lnum) or "",
 				(entry.log_type or "log"):upper(),
+				entry.commented and "yes" or "no",
 				entry.stale and "yes" or "no"
 			),
 			"Summary: " .. (entry.summary or entry.label),

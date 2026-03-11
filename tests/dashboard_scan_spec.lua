@@ -108,4 +108,21 @@ describe("rocketlog.dashboard.scan", function()
 		assert.are.equal(2, entries[1].lnum)
 		assert.are.equal(3, entries[1].end_lnum)
 	end)
+
+	it("includes commented RocketLogs and marks them disabled", function()
+		vim.fn.writefile({
+			"// console.log(`🚀[ROCKETLOG] ~ test.ts:1 ~ disabled:`, disabled);",
+			"console.log(`🚀[ROCKETLOG] ~ test.ts:2 ~ active:`, active);",
+		}, tmp_path)
+
+		local entries = scan.scan_paths({ tmp_path })
+		assert.are.equal(2, #entries)
+		assert.are.equal("disabled", entries[1].label)
+		assert.are.equal(1, entries[1].lnum)
+		assert.is_true(entries[1].commented)
+		assert.are.equal("active", entries[2].label)
+		assert.are.equal(2, entries[2].lnum)
+		assert.is_false(entries[2].commented)
+	end)
+
 end)

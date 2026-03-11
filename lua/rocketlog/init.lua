@@ -131,21 +131,9 @@ end
 local function register_default_keymaps(keymaps)
 	local operator_specs = {
 		{ lhs = keymaps.motions, type = "log", desc = "Rocket log motions (motion/textobject)" },
-		{
-			lhs = keymaps.error_motions,
-			type = "error",
-			desc = "Rocket error log motions (motion/textobject)",
-		},
-		{
-			lhs = keymaps.warn_motions,
-			type = "warn",
-			desc = "Rocket warn log motions (motion/textobject)",
-		},
-		{
-			lhs = keymaps.info_motions,
-			type = "info",
-			desc = "Rocket info log motions (motion/textobject)",
-		},
+		{ lhs = keymaps.error_motions, type = "error", desc = "Rocket error log motions (motion/textobject)" },
+		{ lhs = keymaps.warn_motions, type = "warn", desc = "Rocket warn log motions (motion/textobject)" },
+		{ lhs = keymaps.info_motions, type = "info", desc = "Rocket info log motions (motion/textobject)" },
 	}
 
 	for _, spec in ipairs(operator_specs) do
@@ -154,61 +142,15 @@ local function register_default_keymaps(keymaps)
 	end
 
 	local normal_specs = {
-		{
-			lhs = keymaps.word,
-			rhs = make_word_mapping("log"),
-			desc = "Rocket log word under cursor",
-		},
-		{
-			lhs = keymaps.error_word,
-			rhs = make_word_mapping("error"),
-			desc = "Rocket error log word under cursor",
-		},
-		{
-			lhs = keymaps.warn_word,
-			rhs = make_word_mapping("warn"),
-			desc = "Rocket warn log word under cursor",
-		},
-		{
-			lhs = keymaps.info_word,
-			rhs = make_word_mapping("info"),
-			desc = "Rocket info log word under cursor",
-		},
-		{
-			lhs = keymaps.find,
-			rhs = function()
-				require("rocketlog").find_logs()
-			end,
-			desc = "Find RocketLog entries",
-		},
-		{
-			lhs = keymaps.dashboard,
-			rhs = function()
-				require("rocketlog").toggle_dashboard()
-			end,
-			desc = "Open RocketLog dashboard",
-		},
-		{
-			lhs = keymaps.delete_all_buffer,
-			rhs = function()
-				require("rocketlog").clear_buffer_logs()
-			end,
-			desc = "Delete all RocketLogs in buffer",
-		},
-		{
-			lhs = keymaps.delete_below,
-			rhs = function()
-				require("rocketlog").delete_next_log()
-			end,
-			desc = "Delete next RocketLog below",
-		},
-		{
-			lhs = keymaps.delete_above,
-			rhs = function()
-				require("rocketlog").delete_prev_log()
-			end,
-			desc = "Delete RocketLog above",
-		},
+		{ lhs = keymaps.word, rhs = make_word_mapping("log"), desc = "Rocket log word under cursor" },
+		{ lhs = keymaps.error_word, rhs = make_word_mapping("error"), desc = "Rocket error log word under cursor" },
+		{ lhs = keymaps.warn_word, rhs = make_word_mapping("warn"), desc = "Rocket warn log word under cursor" },
+		{ lhs = keymaps.info_word, rhs = make_word_mapping("info"), desc = "Rocket info log word under cursor" },
+		{ lhs = keymaps.find, rhs = function() require("rocketlog").find_logs() end, desc = "Find RocketLog entries" },
+		{ lhs = keymaps.dashboard, rhs = function() require("rocketlog").toggle_dashboard() end, desc = "Open RocketLog dashboard" },
+		{ lhs = keymaps.delete_all_buffer, rhs = function() require("rocketlog").clear_buffer_logs() end, desc = "Delete all RocketLogs in buffer" },
+		{ lhs = keymaps.delete_below, rhs = function() require("rocketlog").delete_next_log() end, desc = "Delete next RocketLog below" },
+		{ lhs = keymaps.delete_above, rhs = function() require("rocketlog").delete_prev_log() end, desc = "Delete RocketLog above" },
 	}
 
 	for _, spec in ipairs(normal_specs) do
