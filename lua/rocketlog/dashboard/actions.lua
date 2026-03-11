@@ -94,14 +94,15 @@ end
 
 ---@param entry table
 ---@return boolean, string
-local function toggle_entry_comment_state(entry)
+local function set_entry_comment_state(entry, should_be_commented)
 	local target_bufnr = with_target_buffer(entry)
 	if not target_bufnr then
 		vim.notify("RocketLog: unable to toggle log comment state from an unreadable buffer", vim.log.levels.WARN)
-		return false, entry.commented and "uncommented" or "commented"
+		return false, should_be_commented and "commented" or "uncommented"
 	end
 
-	local toggled, comment_error = comment.toggle_range(target_bufnr, entry.lnum, entry.end_lnum, {
+	local range_transformer = should_be_commented and comment.comment_range or comment.uncomment_range
+	local toggled, comment_error = range_transformer(target_bufnr, entry.lnum, entry.end_lnum, {
 		bufnr = target_bufnr,
 		filetype = entry.filetype,
 		path = entry.path,
@@ -109,10 +110,16 @@ local function toggle_entry_comment_state(entry)
 
 	if comment_error == "unsupported_comment_prefix" then
 		vim.notify("RocketLog: unable to resolve a comment prefix for the selected file", vim.log.levels.WARN)
-		return false, entry.commented and "uncommented" or "commented"
+		return false, should_be_commented and "commented" or "uncommented"
 	end
 
-	return toggled, entry.commented and "uncommented" or "commented"
+	return toggled, should_be_commented and "commented" or "uncommented"
+end
+
+---@param entry table
+---@return boolean, string
+local function toggle_entry_comment_state(entry)
+	return set_entry_comment_state(entry, not entry.commented)
 end
 
 ---@param state table
@@ -267,18 +274,19 @@ function M.comment_selected_file(state)
 		return
 	end
 
-	local toggled_count = 0
-	local commented_count = 0
-	local uncommented_count = 0
+	local should_comment_all = false
 	for _, entry in ipairs(group.entries) do
-		local toggled, action = toggle_entry_comment_state(entry)
+		if not entry.commented then
+			should_comment_all = true
+			break
+		end
+	end
+
+	local toggled_count = 0
+	for _, entry in ipairs(group.entries) do
+		local toggled = set_entry_comment_state(entry, should_comment_all)
 		if toggled then
 			toggled_count = toggled_count + 1
-			if action == "commented" then
-				commented_count = commented_count + 1
-			else
-				uncommented_count = uncommented_count + 1
-			end
 		end
 	end
 
@@ -286,10 +294,10 @@ function M.comment_selected_file(state)
 	if toggled_count > 0 then
 		vim.notify(
 			string.format(
-				"RocketLog: toggled %d log(s) in selected file (%d commented, %d uncommented)",
+				"RocketLog: %s all logs in selected file (%d changed, %d total)",
+				should_comment_all and "commented" or "uncommented",
 				toggled_count,
-				commented_count,
-				uncommented_count
+				#group.entries
 			),
 			vim.log.levels.INFO
 		)
