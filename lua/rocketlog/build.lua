@@ -1,3 +1,5 @@
+local config = require("rocketlog.config")
+
 local M = {}
 
 local function escape_template_text(text)
@@ -124,7 +126,7 @@ end
 function M.build_rocket_log_lines(file, line_num, expr, log_type)
 	local method = log_type or "log"
 	local expression_lines = vim.split(expr, "\n", { plain = true })
-	local rocketlog_label = RocketLogs.config.label or "ROCKETLOG"
+	local rocketlog_label = config.get_label()
 
 	if #expression_lines == 1 then
 		local label_text = escape_template_text(normalize_label_text_single_line(expr))

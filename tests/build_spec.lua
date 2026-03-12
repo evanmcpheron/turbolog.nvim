@@ -1,13 +1,11 @@
 describe("rocketlog.build", function()
 	local build
+	local config
 
 	before_each(function()
-		-- Fake global config your code expects.
-		_G.RocketLogs = {
-			config = {
-				label = "ROCKETLOG",
-			},
-		}
+		package.loaded["rocketlog.config"] = nil
+		config = require("rocketlog.config")
+		config.apply({ label = "ROCKETLOG" })
 
 		package.loaded["rocketlog.build"] = nil
 		build = require("rocketlog.build")
@@ -95,9 +93,16 @@ describe("rocketlog.build", function()
 	end)
 
 	it("uses configured RocketLogs label in output", function()
-		_G.RocketLogs.config.label = "MYLABEL"
+		config.config.label = "MYLABEL"
 		local lines = build.build_rocket_log_lines("test.ts", 1, "x", "log")
 		assert.are.same({ "console.log(`🚀[MYLABEL] ~ test.ts:1 ~ x:`, x);" }, lines)
+	end)
+
+	it("ignores stale global label state and uses config module state", function()
+		_G.RocketLogs = { config = { label = "STALE" } }
+		config.config.label = "FRESH"
+		local lines = build.build_rocket_log_lines("test.ts", 1, "x", "log")
+		assert.are.same({ "console.log(`🚀[FRESH] ~ test.ts:1 ~ x:`, x);" }, lines)
 	end)
 
 	it("falls back safely when log type is omitted", function()

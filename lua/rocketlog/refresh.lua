@@ -1,4 +1,5 @@
 local comment = require("rocketlog.comment")
+local config = require("rocketlog.config")
 
 local M = {}
 
@@ -15,8 +16,7 @@ function M.refresh_buffer()
 	local filename = vim.fn.expand("%:t")
 	local changed = 0
 
-	local rocketlog_label = (_G.RocketLogs and _G.RocketLogs.config and _G.RocketLogs.config.label)
-		or "ROCKETLOG"
+	local rocketlog_label = config.get_label()
 	local escaped_label = escape_lua_pattern(rocketlog_label)
 
 	local pattern_with_label = "(`🚀%[" .. escaped_label .. "%]%s*~%s*)[^:]+:%d+(%s*~%s*)"

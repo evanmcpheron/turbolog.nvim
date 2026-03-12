@@ -1,3 +1,4 @@
+local config = require("rocketlog.config")
 local comment = require("rocketlog.comment")
 
 local M = {}
@@ -15,7 +16,7 @@ local DELETABLE_STATEMENTS = {
 ---@param line_text string|nil
 ---@return boolean
 local function is_rocketlog_line(line_text)
-	local rocketlog_label = RocketLogs.config.label or "ROCKETLOG"
+	local rocketlog_label = config.get_label()
 
 	if not line_text or line_text == "" then
 		return false
@@ -41,7 +42,7 @@ end
 ---@param line_text string
 ---@return integer
 local function marker_col0(line_text)
-	local rocketlog_label = RocketLogs.config.label or "ROCKETLOG"
+	local rocketlog_label = config.get_label()
 
 	local marker_col = line_text:find(rocketlog_label, 1, true)
 	if marker_col then
