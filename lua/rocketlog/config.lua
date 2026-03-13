@@ -50,8 +50,8 @@ M.defaults = {
 		typescriptreact = true,
 	},
 	dashboard = {
-		width = 0.96,
-		height = 0.92,
+		width = 0.7,
+		height = 0.7,
 		preview_context = 4,
 		max_files = 2000,
 		excluded_dirs = {
