@@ -2,13 +2,12 @@ local h = require("tests.helpers")
 
 describe("rocketlog.telescope", function()
 	local telescope_mod
+	local config
 
 	before_each(function()
-		_G.RocketLogs = {
-			config = {
-				label = "ROCKETLOG",
-			},
-		}
+		package.loaded["rocketlog.config"] = nil
+		config = require("rocketlog.config")
+		config.apply({ label = "ROCKETLOG" })
 
 		package.loaded["rocketlog.telescope"] = nil
 		telescope_mod = require("rocketlog.telescope")

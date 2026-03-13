@@ -5,9 +5,6 @@ describe("rocketlog.insert", function()
 	local config
 
 	before_each(function()
-		-- Ensure build/insert read a stable global label.
-		_G.RocketLogs = { config = { label = "ROCKETLOG" } }
-
 		package.loaded["rocketlog.config"] = nil
 		config = require("rocketlog.config")
 		config.apply({

@@ -8,6 +8,54 @@ local M = {}
 local DASHBOARD_RUNTIME_GROUP = "RocketLogDashboardRuntime"
 local FILTER_GROUP = "RocketLogDashboardFilter"
 
+local HELP_MODAL_SECTIONS = {
+	{
+		title = "Open",
+		items = {
+			{ "[<CR>] [o]", "Open the selected RocketLog in the current window" },
+			{ "[v]", "Open the selected RocketLog in a vertical split" },
+		},
+	},
+	{
+		title = "Comment + delete",
+		items = {
+			{ "[c]", "Toggle the selected RocketLog on or off" },
+			{ "[C]", "Toggle every RocketLog in the selected file" },
+			{ "[d]", "Delete the selected RocketLog" },
+			{ "[D]", "Delete every RocketLog in the selected file" },
+		},
+	},
+	{
+		title = "Refresh + scope",
+		items = {
+			{ "[r]", "Refresh labels in the selected file" },
+			{ "[R]", "Rescan the dashboard" },
+			{ "[t]", "Toggle project vs current-file scope" },
+		},
+	},
+	{
+		title = "Filter",
+		items = {
+			{ "[/]", "Open the live filter prompt" },
+			{ "[x]", "Clear the active filter" },
+		},
+	},
+	{
+		title = "Folds",
+		items = {
+			{ "[<Tab>] [za]", "Toggle the selected file fold" },
+			{ "[zo] [zc]", "Open or close the selected file fold" },
+			{ "[zR] [zM]", "Expand or collapse every file" },
+		},
+	},
+	{
+		title = "Close",
+		items = {
+			{ "[q] [Esc]", "Close this help modal or the dashboard" },
+		},
+	},
+}
+
 local function defer(fn)
 	vim.schedule(function()
 		pcall(fn)
@@ -52,7 +100,6 @@ local function refresh_dashboard(state, opts)
 	scan.collect_groups(state)
 	render.refresh(state)
 end
-
 
 ---@param entry_or_group table|nil
 ---@return integer|nil
@@ -141,7 +188,7 @@ local function current_group(state)
 	return nil
 end
 
-local function mark_filter_target(entity_type, entity, role)
+local function mark_dashboard_target(entity_type, entity, role)
 	pcall(entity_type == "buf" and vim.api.nvim_buf_set_var or vim.api.nvim_win_set_var, entity, "rocketlog_dashboard", true)
 	pcall(entity_type == "buf" and vim.api.nvim_buf_set_var or vim.api.nvim_win_set_var, entity, "rocketlog_dashboard_role", role)
 end
@@ -165,6 +212,19 @@ local function close_filter_prompt(state)
 	end)
 end
 
+local function close_help_modal(state)
+	if state.ui.help_modal_win and vim.api.nvim_win_is_valid(state.ui.help_modal_win) then
+		pcall(vim.api.nvim_win_close, state.ui.help_modal_win, true)
+	end
+	if state.ui.help_modal_buf and vim.api.nvim_buf_is_valid(state.ui.help_modal_buf) then
+		pcall(vim.api.nvim_buf_delete, state.ui.help_modal_buf, { force = true })
+	end
+
+	state.ui.help_modal_win = nil
+	state.ui.help_modal_buf = nil
+	state_mod.focus_list(state, { normal_mode = true })
+end
+
 local function update_live_filter(state)
 	if not state.ui.filter_buf or not vim.api.nvim_buf_is_valid(state.ui.filter_buf) then
 		return
@@ -174,6 +234,42 @@ local function update_live_filter(state)
 	if state_mod.is_open() then
 		refresh_dashboard(state)
 	end
+end
+
+local function truncate_text(text, max_width)
+	if vim.fn.strdisplaywidth(text) <= max_width then
+		return text
+	end
+
+	return vim.fn.strcharpart(text, 0, math.max(0, max_width - 1)) .. "…"
+end
+
+local function pad_text(text, width)
+	local truncated = truncate_text(text or "", width)
+	return truncated .. string.rep(" ", math.max(0, width - vim.fn.strdisplaywidth(truncated)))
+end
+
+local function build_help_modal_lines(width)
+	local lines = {
+		pad_text("RocketLog Dashboard", width),
+		pad_text("Manage logs without leaving the TUI.", width),
+		string.rep("─", width),
+	}
+	local key_column_width = 16
+	local description_width = math.max(12, width - key_column_width - 3)
+
+	for _, section in ipairs(HELP_MODAL_SECTIONS) do
+		table.insert(lines, pad_text(section.title, width))
+		for _, item in ipairs(section.items) do
+			local row = string.format("  %-" .. key_column_width .. "s %s", item[1], truncate_text(item[2], description_width))
+			table.insert(lines, pad_text(row, width))
+		end
+		table.insert(lines, string.rep(" ", width))
+	end
+
+	table.insert(lines, string.rep("─", width))
+	table.insert(lines, pad_text("Press q or Esc to close this window.", width))
+	return lines
 end
 
 local function open_exact_path(path, command)
@@ -212,9 +308,25 @@ end
 
 local function set_filter_keymaps(state, filter_buf)
 	local keymap_opts = { buffer = filter_buf, silent = true, nowait = true }
-	vim.keymap.set({ "i", "n" }, "<Esc>", function() close_filter_prompt(state) end, vim.tbl_extend("force", keymap_opts, { desc = "Close live filter" }))
-	vim.keymap.set({ "i", "n" }, "<CR>", function() close_filter_prompt(state) end, vim.tbl_extend("force", keymap_opts, { desc = "Apply live filter" }))
-	vim.keymap.set({ "i", "n" }, "<C-c>", function() close_filter_prompt(state) end, vim.tbl_extend("force", keymap_opts, { desc = "Close live filter" }))
+	vim.keymap.set({ "i", "n" }, "<Esc>", function()
+		close_filter_prompt(state)
+	end, vim.tbl_extend("force", keymap_opts, { desc = "Close live filter" }))
+	vim.keymap.set({ "i", "n" }, "<CR>", function()
+		close_filter_prompt(state)
+	end, vim.tbl_extend("force", keymap_opts, { desc = "Apply live filter" }))
+	vim.keymap.set({ "i", "n" }, "<C-c>", function()
+		close_filter_prompt(state)
+	end, vim.tbl_extend("force", keymap_opts, { desc = "Close live filter" }))
+end
+
+local function set_help_modal_keymaps(state, help_buf)
+	local keymap_opts = { buffer = help_buf, silent = true, nowait = true }
+	vim.keymap.set("n", "q", function()
+		close_help_modal(state)
+	end, vim.tbl_extend("force", keymap_opts, { desc = "Close dashboard help" }))
+	vim.keymap.set("n", "<Esc>", function()
+		close_help_modal(state)
+	end, vim.tbl_extend("force", keymap_opts, { desc = "Close dashboard help" }))
 end
 
 function M.open_selected(state, command)
@@ -304,7 +416,6 @@ function M.comment_selected_file(state)
 	end
 end
 
-
 function M.delete_selected(state)
 	local entry = state_mod.get_selected_entry(state)
 	if entry and delete_entry_range(entry) then
@@ -377,7 +488,7 @@ function M.open_live_filter(state)
 	vim.bo[filter_buf].swapfile = false
 	vim.bo[filter_buf].modifiable = true
 	vim.bo[filter_buf].filetype = "rocketlogfilter"
-	mark_filter_target("buf", filter_buf, "filter")
+	mark_dashboard_target("buf", filter_buf, "filter")
 	vim.api.nvim_buf_set_lines(filter_buf, 0, -1, false, { state.filter or "" })
 
 	local width = state.ui.filter_width or 48
@@ -394,7 +505,7 @@ function M.open_live_filter(state)
 		title_pos = "left",
 		zindex = 70,
 	})
-	mark_filter_target("win", filter_win, "filter")
+	mark_dashboard_target("win", filter_win, "filter")
 	vim.wo[filter_win].wrap = false
 	vim.wo[filter_win].winhighlight = table.concat({
 		"Normal:NormalFloat",
@@ -466,29 +577,60 @@ function M.collapse_all(state)
 	refresh_dashboard(state)
 end
 
-function M.show_help()
-	vim.notify(table.concat({
-		"RocketLog Dashboard",
-		"",
-		"<CR>/o open current window",
-		"v      open in vertical split",
-		"c      toggle selected log comment state",
-		"C      toggle all logs in selected file",
-		"d      delete selected log",
-		"D      delete all logs in selected file",
-		"r      refresh selected file labels",
-		"R      rescan dashboard",
-		"/      open live filter",
-		"x      clear current filter",
-		"<Tab>  toggle selected file fold",
-		"za     toggle selected file fold",
-		"zo     open selected file fold",
-		"zc     close selected file fold",
-		"zR     expand all files",
-		"zM     collapse all files",
-		"t      toggle project/current-file scope",
-		"q      close dashboard",
-	}, "\n"), vim.log.levels.INFO)
+function M.show_help(state)
+	if not state or not state_mod.is_open() then
+		return
+	end
+
+	if state.ui.help_modal_win and vim.api.nvim_win_is_valid(state.ui.help_modal_win) then
+		vim.api.nvim_set_current_win(state.ui.help_modal_win)
+		return
+	end
+
+	local help_buf = vim.api.nvim_create_buf(false, true)
+	vim.bo[help_buf].buftype = "nofile"
+	vim.bo[help_buf].bufhidden = "wipe"
+	vim.bo[help_buf].swapfile = false
+	vim.bo[help_buf].modifiable = true
+	vim.bo[help_buf].filetype = "rocketloghelp"
+	mark_dashboard_target("buf", help_buf, "help_modal")
+
+	local width = math.min(88, math.max(54, (state.ui.width or 88) - 14))
+	local lines = build_help_modal_lines(width)
+	local height = math.min(#lines, math.max(12, (state.ui.height or (#lines + 4)) - 6))
+	local row = math.max(1, math.floor(((state.ui.height or height) - height) / 2) - 1)
+	local col = math.max(1, math.floor(((state.ui.width or width) - width) / 2) - 1)
+
+	vim.api.nvim_buf_set_lines(help_buf, 0, -1, false, vim.list_slice(lines, 1, height))
+	vim.bo[help_buf].modifiable = false
+
+	local help_win = vim.api.nvim_open_win(help_buf, true, {
+		relative = "win",
+		win = state.ui.root_win,
+		row = row,
+		col = col,
+		width = width,
+		height = height,
+		style = "minimal",
+		border = "rounded",
+		title = " Help ",
+		title_pos = "center",
+		zindex = 75,
+	})
+	mark_dashboard_target("win", help_win, "help_modal")
+	vim.wo[help_win].wrap = false
+	vim.wo[help_win].cursorline = false
+	vim.wo[help_win].winhighlight = table.concat({
+		"Normal:NormalFloat",
+		"FloatBorder:RocketLogDashboardPaneBorder",
+		"FloatTitle:RocketLogDashboardPaneTitle",
+	}, ",")
+
+	state.ui.help_modal_buf = help_buf
+	state.ui.help_modal_win = help_win
+
+	set_help_modal_keymaps(state, help_buf)
+	vim.api.nvim_win_set_cursor(help_win, { 1, 0 })
 end
 
 function M.attach(state)
@@ -520,6 +662,9 @@ function M.attach(state)
 
 	map_close("q")
 	map_close("<Esc>")
+	map(dashboard_buffers, "?", function()
+		M.show_help(state)
+	end, "Show dashboard help")
 
 	local list_mappings = {
 		{ lhs = "<CR>", rhs = function() M.open_selected(state, "edit") end, desc = "Open selected RocketLog" },
@@ -534,7 +679,6 @@ function M.attach(state)
 		{ lhs = "t", rhs = function() M.toggle_scope(state) end, desc = "Toggle dashboard scope" },
 		{ lhs = "/", rhs = function() M.open_live_filter(state) end, desc = "Open live dashboard filter" },
 		{ lhs = "x", rhs = function() M.clear_filter(state) end, desc = "Clear dashboard filter" },
-		{ lhs = "?", rhs = function() M.show_help() end, desc = "Show dashboard help" },
 		{ lhs = "<Tab>", rhs = function() M.toggle_fold(state) end, desc = "Toggle selected file fold" },
 		{ lhs = "za", rhs = function() M.toggle_fold(state) end, desc = "Toggle selected file fold" },
 		{ lhs = "zo", rhs = function() M.open_fold(state) end, desc = "Open selected file fold" },

@@ -5,9 +5,6 @@ describe("rocketlog.actions", function()
 	local config
 
 	before_each(function()
-		-- Ensure the global label exists for build + delete modules.
-		_G.RocketLogs = { config = { label = "ROCKETLOG" } }
-
 		-- Fresh buffer for each test.
 		h.set_buffer(
 			{ "const user = { name: 'Evan' };" },

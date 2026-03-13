@@ -7,21 +7,7 @@ local list_ns = vim.api.nvim_create_namespace("rocketlog_dashboard_list")
 local preview_ns = vim.api.nvim_create_namespace("rocketlog_dashboard_preview")
 
 local HEADER_LABELS = { "CWD", "Source", "Scope", "Filter", "Files", "Logs", "Folded", "Selected" }
-local HELP_KEYS = {
-	"[<CR>/o]",
-	"[v]",
-	"[c/C]",
-	"[/]",
-	"[x]",
-	"[t]",
-	"[<Tab>/za/zo/zc]",
-	"[zR]",
-	"[zM]",
-	"[d/D]",
-	"[r/R]",
-	"[?]",
-	"[q/Esc]",
-}
+local HELP_KEYS = { "[<CR>/o]", "[v]", "[c/C]", "[/]", "[x]", "[t]", "[<Tab>/za/zo/zc]", "[zR]", "[zM]", "[d/D]", "[r/R]", "[?]", "[q/Esc]" }
 
 local function pad(text, width)
 	text = text or ""
@@ -91,18 +77,6 @@ local function render_plain_buffer(bufnr, lines)
 	vim.bo[bufnr].modifiable = false
 end
 
----@param bufnr integer
----@param syntax_name string|nil
-local function configure_preview_buffer(bufnr, syntax_name)
-	pcall(vim.treesitter.stop, bufnr)
-	vim.bo[bufnr].filetype = "text"
-	if syntax_name and syntax_name ~= "" then
-		vim.api.nvim_buf_call(bufnr, function()
-			vim.cmd("setlocal syntax=" .. syntax_name)
-		end)
-	end
-end
-
 local function highlight_occurrences(bufnr, namespace, line_number0, text, pattern, highlight_group)
 	local start_index = 1
 	while start_index <= #text do
@@ -111,14 +85,7 @@ local function highlight_occurrences(bufnr, namespace, line_number0, text, patte
 			break
 		end
 
-		vim.api.nvim_buf_add_highlight(
-			bufnr,
-			namespace,
-			highlight_group,
-			line_number0,
-			start_col - 1,
-			end_col
-		)
+		vim.api.nvim_buf_add_highlight(bufnr, namespace, highlight_group, line_number0, start_col - 1, end_col)
 		start_index = end_col + 1
 	end
 end
@@ -138,22 +105,18 @@ function M.render_shell(state)
 	render_plain_buffer(state.ui.root_buf, root_lines)
 
 	local groups = state.groups or {}
-	local source_path = state.source_path ~= "" and relative_path(state.source_path, state.cwd)
-		or "[No Name]"
+	local source_path = state.source_path ~= "" and relative_path(state.source_path, state.cwd) or "[No Name]"
 	local header_lines = {
 		pad("CWD    " .. state.cwd, state.ui.header_width),
 		pad("Source " .. source_path, state.ui.header_width),
-		pad(
-			string.format(
-				"Scope %s   Filter %s   Files %d   Logs %d   Folded %d",
-				current_scope_label(state),
-				state.filter ~= "" and state.filter or "none",
-				#groups,
-				total_entries(groups),
-				collapsed_count(state)
-			),
-			state.ui.header_width
-		),
+		pad(string.format(
+			"Scope %s   Filter %s   Files %d   Logs %d   Folded %d",
+			current_scope_label(state),
+			state.filter ~= "" and state.filter or "none",
+			#groups,
+			total_entries(groups),
+			collapsed_count(state)
+		), state.ui.header_width),
 	}
 
 	while #header_lines < state.ui.header_height do
@@ -164,33 +127,13 @@ function M.render_shell(state)
 	vim.api.nvim_buf_clear_namespace(state.ui.header_buf, shell_ns, 0, -1)
 	for line_number, text in ipairs(header_lines) do
 		local line_number0 = line_number - 1
-		vim.api.nvim_buf_add_highlight(
-			state.ui.header_buf,
-			shell_ns,
-			"RocketLogDashboardHeader",
-			line_number0,
-			0,
-			-1
-		)
-		highlight_many(
-			state.ui.header_buf,
-			shell_ns,
-			line_number0,
-			text,
-			HEADER_LABELS,
-			"RocketLogDashboardMetaLabel"
-		)
+		vim.api.nvim_buf_add_highlight(state.ui.header_buf, shell_ns, "RocketLogDashboardHeader", line_number0, 0, -1)
+		highlight_many(state.ui.header_buf, shell_ns, line_number0, text, HEADER_LABELS, "RocketLogDashboardMetaLabel")
 	end
 
 	local help_lines = {
-		pad(
-			"Open [<CR>/o]   Split [v]   Toggle [c/C]   Filter [/]   Clear [x]   Scope [t]   Fold [<Tab>/za/zo/zc]",
-			state.ui.help_width
-		),
-		pad(
-			"Expand [zR]   Collapse [zM]   Delete [d/D]   Refresh [r/R]   Help [?]   Close [q/Esc]",
-			state.ui.help_width
-		),
+		pad("Open [<CR>/o]   Split [v]   Toggle [c/C]   Filter [/]   Clear [x]   Scope [t]   Fold [<Tab>/za/zo/zc]", state.ui.help_width),
+		pad("Expand [zR]   Collapse [zM]   Delete [d/D]   Refresh [r/R]   Help [?]   Close [q/Esc]", state.ui.help_width),
 		pad("Selected " .. selected_entry_summary(state), state.ui.help_width),
 	}
 
@@ -202,30 +145,9 @@ function M.render_shell(state)
 	vim.api.nvim_buf_clear_namespace(state.ui.help_buf, shell_ns, 0, -1)
 	for line_number, text in ipairs(help_lines) do
 		local line_number0 = line_number - 1
-		vim.api.nvim_buf_add_highlight(
-			state.ui.help_buf,
-			shell_ns,
-			"RocketLogDashboardFooter",
-			line_number0,
-			0,
-			-1
-		)
-		highlight_many(
-			state.ui.help_buf,
-			shell_ns,
-			line_number0,
-			text,
-			HEADER_LABELS,
-			"RocketLogDashboardMetaLabel"
-		)
-		highlight_many(
-			state.ui.help_buf,
-			shell_ns,
-			line_number0,
-			text,
-			HELP_KEYS,
-			"RocketLogDashboardHintKey"
-		)
+		vim.api.nvim_buf_add_highlight(state.ui.help_buf, shell_ns, "RocketLogDashboardFooter", line_number0, 0, -1)
+		highlight_many(state.ui.help_buf, shell_ns, line_number0, text, HEADER_LABELS, "RocketLogDashboardMetaLabel")
+		highlight_many(state.ui.help_buf, shell_ns, line_number0, text, HELP_KEYS, "RocketLogDashboardHintKey")
 	end
 end
 
@@ -246,20 +168,13 @@ function M.render_list(state)
 		for _, group in ipairs(groups) do
 			local is_collapsed = state.collapsed_paths[group.path] == true
 			local group_icon = is_collapsed and "▸" or "▾"
-			local group_line = string.format(
-				"%s %s (%d)",
-				group_icon,
-				relative_path(group.path, state.cwd),
-				group.count
-			)
+			local group_line = string.format("%s %s (%d)", group_icon, relative_path(group.path, state.cwd), group.count)
 			table.insert(lines, pad(group_line, width))
 			line_map[#lines] = { kind = "group", group = group }
 
 			if not is_collapsed then
 				for _, entry in ipairs(group.entries) do
-					local line_range = entry.end_lnum > entry.lnum
-							and string.format("%d-%d", entry.lnum, entry.end_lnum)
-						or tostring(entry.lnum)
+					local line_range = entry.end_lnum > entry.lnum and string.format("%d-%d", entry.lnum, entry.end_lnum) or tostring(entry.lnum)
 					local row = string.format(
 						"  %6s  %-5s %s%s%s",
 						line_range,
@@ -287,69 +202,23 @@ function M.render_list(state)
 	for line_number, item in pairs(line_map) do
 		local line_number0 = line_number - 1
 		if item.kind == "group" then
-			vim.api.nvim_buf_add_highlight(
-				state.ui.list_buf,
-				list_ns,
-				"RocketLogDashboardFoldIcon",
-				line_number0,
-				0,
-				3
-			)
-			vim.api.nvim_buf_add_highlight(
-				state.ui.list_buf,
-				list_ns,
-				"RocketLogDashboardGroup",
-				line_number0,
-				2,
-				-1
-			)
+			vim.api.nvim_buf_add_highlight(state.ui.list_buf, list_ns, "RocketLogDashboardFoldIcon", line_number0, 0, 3)
+			vim.api.nvim_buf_add_highlight(state.ui.list_buf, list_ns, "RocketLogDashboardGroup", line_number0, 2, -1)
 		else
 			local line_text = lines[line_number]
-			vim.api.nvim_buf_add_highlight(
-				state.ui.list_buf,
-				list_ns,
-				"RocketLogDashboardLineNr",
-				line_number0,
-				2,
-				8
-			)
-			vim.api.nvim_buf_add_highlight(
-				state.ui.list_buf,
-				list_ns,
-				log_type_highlight(item.entry.log_type),
-				line_number0,
-				10,
-				15
-			)
+			vim.api.nvim_buf_add_highlight(state.ui.list_buf, list_ns, "RocketLogDashboardLineNr", line_number0, 2, 8)
+			vim.api.nvim_buf_add_highlight(state.ui.list_buf, list_ns, log_type_highlight(item.entry.log_type), line_number0, 10, 15)
 			if item.entry.commented then
-				highlight_occurrences(
-					state.ui.list_buf,
-					list_ns,
-					line_number0,
-					line_text,
-					"[off]",
-					"RocketLogDashboardDisabled"
-				)
+				highlight_occurrences(state.ui.list_buf, list_ns, line_number0, line_text, "[off]", "RocketLogDashboardDisabled")
 			end
 			if item.entry.stale then
-				highlight_occurrences(
-					state.ui.list_buf,
-					list_ns,
-					line_number0,
-					line_text,
-					"*",
-					"RocketLogDashboardStale"
-				)
+				highlight_occurrences(state.ui.list_buf, list_ns, line_number0, line_text, "*", "RocketLogDashboardStale")
 			end
 		end
 	end
 
 	vim.bo[state.ui.list_buf].modifiable = false
-	pcall(
-		vim.api.nvim_win_set_cursor,
-		state.ui.list_win,
-		{ state_mod.find_preferred_cursor_row(state), 0 }
-	)
+	pcall(vim.api.nvim_win_set_cursor, state.ui.list_win, { state_mod.find_preferred_cursor_row(state), 0 })
 end
 
 ---@param state table
@@ -394,14 +263,14 @@ function M.render_preview(state)
 
 		target_start = 5 + (entry.lnum - context_start)
 		target_end = target_start + (entry.end_lnum - entry.lnum)
-		configure_preview_buffer(state.ui.preview_buf, entry.filetype)
+		vim.bo[state.ui.preview_buf].filetype = entry.filetype or "text"
 	else
 		lines = {
 			"No preview available.",
 			"",
 			"Select a RocketLog entry to inspect the surrounding code.",
 		}
-		configure_preview_buffer(state.ui.preview_buf, nil)
+		vim.bo[state.ui.preview_buf].filetype = "text"
 	end
 
 	vim.bo[state.ui.preview_buf].modifiable = true
@@ -409,26 +278,12 @@ function M.render_preview(state)
 	vim.api.nvim_buf_clear_namespace(state.ui.preview_buf, preview_ns, 0, -1)
 
 	for line_number = 1, math.min(4, #lines) do
-		vim.api.nvim_buf_add_highlight(
-			state.ui.preview_buf,
-			preview_ns,
-			"RocketLogDashboardPreviewMeta",
-			line_number - 1,
-			0,
-			-1
-		)
+		vim.api.nvim_buf_add_highlight(state.ui.preview_buf, preview_ns, "RocketLogDashboardPreviewMeta", line_number - 1, 0, -1)
 	end
 
 	if target_start and target_end then
 		for line_number = target_start, target_end do
-			vim.api.nvim_buf_add_highlight(
-				state.ui.preview_buf,
-				preview_ns,
-				"RocketLogDashboardPreviewTarget",
-				line_number - 1,
-				0,
-				-1
-			)
+			vim.api.nvim_buf_add_highlight(state.ui.preview_buf, preview_ns, "RocketLogDashboardPreviewTarget", line_number - 1, 0, -1)
 		end
 	end
 

@@ -2,14 +2,15 @@ local h = require("tests.helpers")
 
 describe("rocketlog.refresh", function()
 	local refresh
+	local config
 
 	before_each(function()
-		_G.RocketLogs = {
-			config = {
-				label = "ROCKETLOG",
-				refresh_on_save = true,
-			},
-		}
+		package.loaded["rocketlog.config"] = nil
+		config = require("rocketlog.config")
+		config.apply({
+			label = "ROCKETLOG",
+			refresh_on_save = true,
+		})
 
 		h.set_buffer({}, { filetype = "typescript", name = "/tmp/test-file.ts" })
 
@@ -110,7 +111,7 @@ describe("rocketlog.refresh", function()
 	end)
 
 	it("respects configured label when refreshing", function()
-		_G.RocketLogs.config.label = "MYLABEL"
+		config.config.label = "MYLABEL"
 		h.set_buffer({
 			"console.log(`🚀[MYLABEL] ~ wrong.ts:10 ~ x:`, x);",
 		}, { filetype = "typescript", name = "/tmp/test-file.ts" })

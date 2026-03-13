@@ -3,9 +3,12 @@ local h = require("tests.helpers")
 describe("rocketlog.delete", function()
 	local delete
 	local build
+	local config
 
 	before_each(function()
-		_G.RocketLogs = { config = { label = "ROCKETLOG" } }
+		package.loaded["rocketlog.config"] = nil
+		config = require("rocketlog.config")
+		config.apply({ label = "ROCKETLOG" })
 
 		-- Force Tree-sitter delete path to be unavailable so tests stay deterministic.
 		-- We still validate the actual deletion behavior via the fallback logic.
@@ -221,7 +224,7 @@ describe("rocketlog.delete", function()
 	end)
 
 	it("matches current label format for RocketLog detection", function()
-		_G.RocketLogs.config.label = "MYLABEL"
+		config.config.label = "MYLABEL"
 		h.set_buffer({
 			"const x = 1;",
 			"console.log(`🚀[MYLABEL] ~ test.ts:2 ~ x:`, x);",

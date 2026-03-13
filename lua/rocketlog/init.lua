@@ -3,12 +3,13 @@ local config = require("rocketlog.config")
 local delete = require("rocketlog.delete")
 local refresh = require("rocketlog.refresh")
 
-_G.RocketLogs = _G.RocketLogs or {}
+local M = {
+	config = config.config,
+	_registered_keymaps = {},
+}
 
-local M = _G.RocketLogs
-
-M.config = config.config
-M._registered_keymaps = M._registered_keymaps or {}
+-- Backwards-compatible global export for operatorfunc integrations and older configs.
+_G.RocketLogs = M
 
 local USER_COMMANDS = {
 	{
@@ -160,8 +161,7 @@ end
 
 ---@param opts table|nil
 function M.setup(opts)
-	config.apply(opts)
-	M.config = config.config
+	M.config = config.apply(opts)
 
 	clear_registered_keymaps()
 	reset_user_commands()

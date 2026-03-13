@@ -153,6 +153,74 @@ describe("rocketlog.dashboard.actions", function()
 		assert.is_true(called)
 	end)
 
+	it("opens a closable help modal from the dashboard", function()
+		local source_bufnr = h.set_buffer(
+			{ "const source = true;" },
+			{ filetype = "typescript", name = "source.ts" }
+		)
+		local state = state_mod.new(source_bufnr)
+		state_mod.set_current(state)
+		layout.open(state)
+		render.refresh(state)
+		actions.attach(state)
+
+		vim.api.nvim_set_current_win(state.ui.list_win)
+		vim.api.nvim_buf_call(state.ui.list_buf, function()
+			vim.api.nvim_feedkeys("?", "xt", false)
+		end)
+		vim.wait(100, function()
+			return state.ui.help_modal_win ~= nil
+				and vim.api.nvim_win_is_valid(state.ui.help_modal_win)
+		end)
+
+		assert.is_true(vim.api.nvim_win_is_valid(state.ui.help_modal_win))
+		assert.is_truthy(
+			vim.api
+				.nvim_buf_get_lines(state.ui.help_modal_buf, 0, -1, false)[1]
+				:find("RocketLog Dashboard", 1, true)
+		)
+
+		vim.api.nvim_buf_call(state.ui.help_modal_buf, function()
+			vim.api.nvim_feedkeys("q", "xt", false)
+		end)
+		vim.wait(100, function()
+			return state.ui.help_modal_win == nil
+		end)
+
+		assert.is_nil(state.ui.help_modal_win)
+		assert.are.equal(state.ui.list_win, vim.api.nvim_get_current_win())
+		assert.are.equal(state, state_mod.get_current())
+	end)
+
+	it("closes the help modal with escape", function()
+		local source_bufnr = h.set_buffer(
+			{ "const source = true;" },
+			{ filetype = "typescript", name = "source.ts" }
+		)
+		local state = state_mod.new(source_bufnr)
+		state_mod.set_current(state)
+		layout.open(state)
+		render.refresh(state)
+		actions.attach(state)
+
+		actions.show_help(state)
+		assert.is_true(vim.api.nvim_win_is_valid(state.ui.help_modal_win))
+
+		vim.api.nvim_buf_call(state.ui.help_modal_buf, function()
+			vim.api.nvim_feedkeys(
+				vim.api.nvim_replace_termcodes("<Esc>", true, false, true),
+				"xt",
+				false
+			)
+		end)
+		vim.wait(100, function()
+			return state.ui.help_modal_win == nil
+		end)
+
+		assert.is_nil(state.ui.help_modal_win)
+		assert.are.equal(state.ui.list_win, vim.api.nvim_get_current_win())
+	end)
+
 	it("toggles and resets fold state for file groups", function()
 		local source_bufnr = h.set_buffer(
 			{ "const source = true;" },
