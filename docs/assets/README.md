@@ -34,7 +34,6 @@ Use the placeholders in `README.md` and `docs/*.md` as insertion points.
 
 - keep them short, around 6–12 seconds
 - do one workflow per GIF
-- avoid mouse movement if the plugin is keyboard-first
 - make sure key presses are clear from the resulting UI changes
 
 ### Screenshots
