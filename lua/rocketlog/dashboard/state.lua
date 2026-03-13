@@ -7,6 +7,7 @@ local M = {
 local DASHBOARD_FILETYPES = {
 	rocketlogdashboard = true,
 	rocketlogfilter = true,
+	rocketloghelp = true,
 }
 
 local SIDEBAR_FILETYPES = {
@@ -30,8 +31,8 @@ local SIDEBAR_FILETYPES = {
 	dapui_console = true,
 }
 
-local UI_WINDOW_KEYS = { "filter_win", "list_win", "preview_win", "header_win", "help_win", "root_win" }
-local UI_BUFFER_KEYS = { "filter_buf", "list_buf", "preview_buf", "header_buf", "help_buf", "root_buf" }
+local UI_WINDOW_KEYS = { "filter_win", "help_modal_win", "list_win", "preview_win", "header_win", "help_win", "root_win" }
+local UI_BUFFER_KEYS = { "filter_buf", "help_modal_buf", "list_buf", "preview_buf", "header_buf", "help_buf", "root_buf" }
 
 local function get_marked_flag(getter, id)
 	local ok, marked = pcall(getter, id, "rocketlog_dashboard")
