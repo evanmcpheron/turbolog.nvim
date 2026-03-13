@@ -1,8 +1,8 @@
 # Contributing to rocketlog.nvim
 
-Thanks for helping improve rocketlog.nvim. This doc is intentionally short: do the basics, keep changes focused, and avoid surprise behavior changes.
+Thanks for contributing. Keep changes focused, test what you touched, and do not sneak in behavior changes behind “small cleanup” language. That trick is older than the hills.
 
-## Local install (for development)
+## Development setup
 
 Point your Neovim config at your local clone:
 
@@ -10,112 +10,197 @@ Point your Neovim config at your local clone:
 {
   dir = "~/path/to/rocketlog.nvim",
   name = "rocketlog.nvim",
-  dependencies = { "nvim-treesitter/nvim-treesitter" },
+  dependencies = {
+    "nvim-treesitter/nvim-treesitter",
+    "folke/snacks.nvim",
+  },
   config = function()
     require("rocketlog").setup()
   end,
 }
 ```
 
-Restart neovim and run `:Lazy sync` if needed.
+Restart Neovim and run `:Lazy sync` if needed.
 
 ---
 
-## How to run / test
+## Repository docs you should care about
 
-This plugin is easiest to test by using it in a real JS/TS file and verifying insertion and deletion behavior.
+- [README.md](./README.md)
+- [docs/README.md](./docs/README.md)
+- [docs/GETTING_STARTED.md](./docs/GETTING_STARTED.md)
+- [docs/USAGE.md](./docs/USAGE.md)
+- [docs/DASHBOARD.md](./docs/DASHBOARD.md)
+- [docs/CONFIGURATION.md](./docs/CONFIGURATION.md)
+- [docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md)
+- [docs/assets/README.md](./docs/assets/README.md)
 
-### Manual test checklist
-Create a JS/TS file and validate:
+If you change user-facing behavior, update the relevant docs in the same PR.
 
-- Operator insertions:
-  - `<leader>rl` + motion inserts console.log
-  - `<leader>re` + motion inserts console.error
-  - `<leader>rw` + motion inserts console.warn
-  - `<leader>ri` + motion inserts console.info
+---
 
-- Word-under-cursor insertions:
-  - `<leader>rL,` `<leader>rE,` `<leader>rW,` `<leader>rI`
+## Running tests
 
-- Deletion helpers:
-  - `<leader>rd` deletes next RocketLog below cursor
-  - `<leader>rD` deletes nearest RocketLog above cursor
-  - `<leader>ra` clears all RocketLogs in the buffer
+### Preferred command
 
-- Refresh behavior:
-  - If `refresh_on_save` = true, line numbers update on save
-  - If `refresh_on_insert` = true, line numbers update after inserting a log
+```bash
+./scripts/test.sh
+```
 
-Guardrails:
-Verify RocketLog refuses to insert where it would break syntax (example: implicit arrow returns)
+### What it does
 
-## Coding style
+This runs the plugin test suite in headless Neovim using the repository’s minimal test init.
 
-Keep diffs boring.
+### Manual notes
+
+- `plenary.nvim` must be installed in your normal Neovim data directory
+- see `tests/minimal_init.lua` for the isolated test setup
+
+---
+
+## Manual testing checklist
+
+Open a real JS/TS file and verify the following:
+
+### Insertion
+
+- `<leader>rl` + motion inserts `console.log`
+- `<leader>re` + motion inserts `console.error`
+- `<leader>rw` + motion inserts `console.warn`
+- `<leader>ri` + motion inserts `console.info`
+
+### Word-under-cursor
+
+- `<leader>rL`
+- `<leader>rE`
+- `<leader>rW`
+- `<leader>rI`
+
+### Deletion helpers
+
+- `<leader>rd` deletes the next RocketLog below cursor
+- `<leader>rD` deletes the nearest RocketLog above cursor
+- `<leader>ra` clears all RocketLogs in the buffer
+
+### Dashboard
+
+- `<leader>rr` opens and closes cleanly
+- `<CR>` opens the selected entry and closes the dashboard
+- `v` opens the selected entry in a vertical split
+- `c` toggles the selected log
+- `C` toggles all logs in the selected file
+- `d` and `D` delete entries as expected
+- `/` opens the live filter
+- `x` clears the filter
+- `t` switches scope
+- `?` opens the help modal
+- `q` and `<Esc>` close the dashboard or help modal appropriately
+- folds work with `<Tab>`, `za`, `zo`, `zc`, `zR`, `zM`
+
+### Refresh
+
+- with `refresh_on_save = true`, labels update on save
+- with `refresh_on_insert = true`, labels update after insertion
+
+### Guardrails
+
+Verify RocketLog refuses unsafe insertions, including:
+
+- implicit arrow returns
+- selections in function headers or params
+
+---
+
+## Coding guidelines
 
 ### Lua style
 
-- Use `local` unless you truly need `_G`.
-- Prefer descriptive names over clever names.
-- Keep functions small and single-purpose.
+- prefer descriptive names over clever names
+- keep functions focused and boring
+- avoid hidden global state unless Neovim requires it
 
 ### Comments
 
-- Comment intent and edge cases, not obvious Lua syntax.
-- If behavior is non-obvious, add a short comment explaining why.
+- comment intent and edge cases
+- do not comment obvious syntax
+- if behavior looks weird, explain why it exists
 
 ### Formatting
 
-- Run `stylua`
+Run `stylua` before opening a PR.
 
-### Compatibility
+### Optional dependencies
 
-- Avoid requiring optional dependencies at module load time.
-- Use `pcall(require, ...)` for optional integrations.
+Do not require optional integrations at module load time unless they are actually mandatory.
+
+Use `pcall(require, ...)` where appropriate.
+
+---
+
+## Documentation guidelines
+
+When docs change, aim for:
+
+- accurate keymaps,
+- accurate command names,
+- examples that match real plugin behavior,
+- clear placeholders for missing media instead of pretending screenshots exist.
+
+If you add a new workflow or UI behavior, update:
+
+1. `README.md`
+2. the relevant file under `docs/`
+3. `docs/assets/README.md` if new screenshots or GIFs are needed
+
+If you change dashboard controls, check the docs for the easy-to-miss stuff too:
+
+- footer cheatsheet text,
+- help modal references,
+- filter keys,
+- file-wide actions like `C` and `D`.
+
+---
 
 ## Submitting issues
 
-Open an issue with:
+Include:
 
 - Neovim version (`nvim --version`)
 - OS
-- Minimal repro steps (exact file contents if possible)
-- Expected vs actual behavior
-- Whether Tree-sitter is installed/enabled
-- Your RocketLog config (especially `prefer_treesitter`, `fallback_to_heuristics`, refresh flags, and keymaps)
-- If it’s a crash, include the full error and stack trace
+- exact repro steps
+- expected behavior
+- actual behavior
+- RocketLog config
+- whether Tree-sitter is installed
+- whether `snacks.nvim` is installed
+- full error text and stack trace if applicable
 
-## Submitting PRs
+Open issues here:
+[github.com/evanmcpheron/rocketlog.nvim/issues](https://github.com/evanmcpheron/rocketlog.nvim/issues)
 
-### Before you open a PR
+---
 
-- Keep PRs focused: one behavior change or one fix per PR.
-- Update docs if you change user-facing behavior or config.
-- Prefer adding a small repro snippet in the PR description.
+## PR expectations
 
-### PR expectations
+### Before opening a PR
 
-- To create a PR visit [here](https://github.com/evanmcpheron/rocketlog.nvim/compare).
-- No breaking changes without discussion in an issue first.
-- No stylistic refactors mixed with logic changes.
-- If you touch insertion logic:
-  - Verify it works with multiline chains, objects, and nested expressions.
-  - Verify it does not break implicit returns and other unsafe contexts.
+- keep the PR focused
+- update docs for user-facing changes
+- add or update tests when behavior changes
+- avoid mixing refactors with logic changes unless there is a good reason
 
-## What kinds of PRs are wanted
+### Especially important for insertion logic
 
-### Wanted
+If you touch insertion behavior, verify it still works with:
 
-- Bug fixes in insertion/deletion/refresh behavior
-- Better guardrails that prevent broken code
-- Performance improvements that keep behavior identical
-- Documentation improvements that reduce confusion
+- multiline chains
+- object literals
+- nested expressions
+- unsafe contexts that should still be blocked
 
-### Not wanted (unless discussed first)
+### Not wanted without discussion first
 
-- Large rewrites or major architecture changes
-- Adding new required dependencies
-- Expanding scope beyond JS/TS console logging
-- Formatting-only PRs across the whole repo:> [!WARNING]
-
-
+- large rewrites
+- new required dependencies
+- broad scope changes unrelated to current plugin goals
+- formatting-only PRs across the whole repo
